@@ -27,5 +27,6 @@
 - Only the frosting/icing/scoops/cake count – pieces on the wrapper, dough, cone or plate fall off.
 
 ## Known issues
-- iPhone sound fix (silent switch + tap unlock) not yet confirmed on a real iPhone. It plays through the silent switch on purpose, and pauses other music (e.g. Spotify) while playing.
+- iPhone sound confirmed working (iPhone 16 Pro, iOS 26.6). It plays through the silent switch on purpose, and pauses other music (e.g. Spotify) while playing.
 - Level progress isn't saved yet (step 5).
+- GitHub Pages caches files ~10 min: after a push, phones may show the old version for a while (close the tab and reopen).
