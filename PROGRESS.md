@@ -10,7 +10,7 @@
   - Tools: Sprinkles (L1), Nonpareils (L3, dense tiny balls), Chocolate Drip (L5, blobs that start drips running down to the object's edge).
   - Tool picker: round buttons at the bottom with icons drawn in code; a newly unlocked tool is auto-selected, pulses, and gets a "New tool: …!" toast + ding.
   - Win popup → "Next" goes to the next level; after level 5 "Play again" goes back to level 1.
-- Sounds (audio.js): ticks (sprinkles/nonpareils), blop (chocolate), ding (new tool), "Sweet!" fanfare. Audio unlocks on first touch (iOS).
+- Sounds (audio.js): ticks (sprinkles/nonpareils), blop (chocolate), ding (new tool), "Sweet!" fanfare. Audio unlocks on first touch (iOS). iPhone: unlocks on a finished tap, plays even with the silent switch on (audioSession "playback" on iOS 17+, silent looping <audio> on older iOS).
 
 ## In progress
 - (nothing)
@@ -27,5 +27,5 @@
 - Only the frosting/icing/scoops/cake count – pieces on the wrapper, dough, cone or plate fall off.
 
 ## Known issues
-- Not yet tested on a real iPhone. On iPhone, Web Audio is silent when the ring/silent switch is on.
+- iPhone sound fix (silent switch + tap unlock) not yet confirmed on a real iPhone. It plays through the silent switch on purpose, and pauses other music (e.g. Spotify) while playing.
 - Level progress isn't saved yet (step 5).

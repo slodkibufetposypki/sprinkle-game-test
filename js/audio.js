@@ -1,22 +1,80 @@
 'use strict';
 
 // Generated sounds (Web Audio API) – no audio files.
-// iOS only allows audio after a user gesture, so call Sfx.unlock() from touch handlers.
+// iOS only allows audio after a user gesture (a finished tap, not touch start),
+// so unlock() runs on every tap/click/key below and from the game's handlers.
 const Sfx = (() => {
   let ac = null;
   let master = null;
   let lastTick = 0;
+  let silentLoop = null;
+
+  // A tiny silent WAV generated in code (0.1 s, 8-bit mono).
+  function silentWavUrl() {
+    const n = 4410;
+    const v = new DataView(new ArrayBuffer(44 + n));
+    const text = (at, s) => [...s].forEach((c, i) => v.setUint8(at + i, c.charCodeAt(0)));
+    text(0, 'RIFF');
+    v.setUint32(4, 36 + n, true);
+    text(8, 'WAVEfmt ');
+    v.setUint32(16, 16, true); // fmt chunk size
+    v.setUint16(20, 1, true); // PCM
+    v.setUint16(22, 1, true); // mono
+    v.setUint32(24, 44100, true); // sample rate
+    v.setUint32(28, 44100, true); // byte rate
+    v.setUint16(32, 1, true); // block align
+    v.setUint16(34, 8, true); // bits per sample
+    text(36, 'data');
+    v.setUint32(40, n, true);
+    for (let i = 0; i < n; i++) v.setUint8(44 + i, 128); // 128 = silence in 8-bit
+    return URL.createObjectURL(new Blob([v.buffer], { type: 'audio/wav' }));
+  }
+
+  // iPhones mute web audio when the ring/silent switch is on. Asking for a
+  // "playback" audio session (iOS 17+), or on older iOS keeping a silent
+  // <audio> element playing, makes the game audible like a video would be.
+  function bypassSilentSwitch() {
+    if (navigator.audioSession) {
+      try {
+        navigator.audioSession.type = 'playback';
+      } catch (e) {
+        // not supported – fine
+      }
+      return;
+    }
+    if (!silentLoop) {
+      silentLoop = new Audio(silentWavUrl());
+      silentLoop.loop = true;
+      silentLoop.setAttribute('playsinline', '');
+    }
+    if (silentLoop.paused) silentLoop.play().catch(() => {});
+  }
 
   function unlock() {
     if (!ac) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
+      bypassSilentSwitch();
       ac = new AC();
       master = ac.createGain();
       master.gain.value = 0.5;
       master.connect(ac.destination);
+    } else if (!navigator.audioSession) {
+      bypassSilentSwitch();
     }
-    if (ac.state === 'suspended') ac.resume();
+    // 'suspended' before the first tap, 'interrupted' on iOS after a call/app switch
+    if (ac.state !== 'running') {
+      ac.resume().catch(() => {});
+      // older iOS only unlocks after something is actually played inside a tap
+      const src = ac.createBufferSource();
+      src.buffer = ac.createBuffer(1, 1, 22050);
+      src.connect(ac.destination);
+      src.start(0);
+    }
+  }
+
+  for (const type of ['touchend', 'pointerup', 'click', 'keydown']) {
+    document.addEventListener(type, unlock, { capture: true, passive: true });
   }
 
   function tone(freq, start, dur, type, vol, slideTo) {
@@ -72,5 +130,15 @@ const Sfx = (() => {
     }
   }
 
-  return { unlock, tick, blop, ding, sweet };
+  return {
+    unlock,
+    tick,
+    blop,
+    ding,
+    sweet,
+    // for debugging in the console: 'none' | 'suspended' | 'running' | 'interrupted'
+    get state() {
+      return ac ? ac.state : 'none';
+    },
+  };
 })();
