@@ -474,6 +474,8 @@ function drawSign(ctx, x, dir) {
 function drawPiece(ctx, p) {
   switch (p.kind) {
     case 'sprinkle': {
+      // pieces of the pastel mix use their SVG art; plain rods are the fallback
+      if (p.el && drawSprinklePiece(ctx, p)) break;
       const cx = Math.cos(p.rot) * 3.4;
       const cy = Math.sin(p.rot) * 3.4;
       ctx.lineCap = 'round';
@@ -627,6 +629,18 @@ function drawPiece(ctx, p) {
 // Weapon button icons, 40×40 box.
 const WEAPON_ICONS = {
   sprinkles(ctx) {
+    const icon = [
+      ['vermicelli-pink', 12, 11, 0.7], ['vermicelli-turquoise', 27, 13, 2.3], ['vermicelli-violet', 13, 29, 2.6],
+      ['confetti-white', 28, 28, 0], ['pearl-pink', 20, 20, 0], ['nonpareil-gold', 31, 20, 0],
+      ['nonpareil-turquoise', 6, 20, 0], ['heart-small-pink', 21, 33, 0.2],
+    ];
+    if (icon.every(([key]) => sprinkleReady(key))) {
+      for (const [key, x, y, rot] of icon) {
+        const el = key.startsWith('heart-small') ? 'heart-small' : key.split('-')[0];
+        drawSprinklePiece(ctx, { el, key, x, y, rot }, 1.5);
+      }
+      return;
+    }
     ctx.save();
     ctx.scale(1.5, 1.5);
     [[9, 9, 0.6, 0], [18, 8, 2.2, 1], [14, 15, 1.1, 2], [8, 19, 2.6, 4], [20, 19, 0.2, 6]].forEach(([x, y, rot, c]) =>

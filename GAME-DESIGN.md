@@ -56,7 +56,7 @@ Visual target: the user's concept image (candy-land kingdom, cake castles, capyb
 - **Turns:** players alternate shots, 5 rounds each (round tracker with crowns at the top). Pull back and let go to fire; a short trajectory preview shows only the start of the arc.
 - **Twist:** every hit decorates the *enemy's* castle. At the end the king eats the **tastiest** castle – its owner loses. So decorate the enemy cake as well as you can and don't spill on your own.
 - **Weapons** (weapon bar appears under the active player's castle, ammo pips under each):
-  - Sprinkles – spray, unlimited.
+  - Sprinkles – spray of the pastel sprinkle mix (SVG art recreated from a reference photo): vermicelli, nonpareils (incl. gold), pearls, confetti discs, small pink hearts, rare large white heart. Unlimited.
   - Glitter – big floaty sparkle cloud (low gravity, air drag), 2 per game.
   - Golden Trio – three heavy golden balls fired in a row, bounce/roll, 2 per game.
   - Pink Drip – icing blob that splats and drips down the tiers, 2 per game.

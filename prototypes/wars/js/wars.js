@@ -51,7 +51,7 @@ const KINDS = {
 };
 
 const WEAPONS = {
-  sprinkles: { ammo: Infinity, kind: 'sprinkle', count: 30, spread: 0.14, jitter: 0.16 },
+  sprinkles: { ammo: Infinity, kind: 'sprinkle', count: 36, spread: 0.14, jitter: 0.16, mix: true },
   glitter: { ammo: 2, kind: 'glitter', count: 80, spread: 0.35, jitter: 0.35 },
   trio: { ammo: 2, kind: 'ball', count: 3, spread: 0.03, jitter: 0.06, stagger: 0.12 },
   drip: { ammo: 2, kind: 'blob', count: 1, spread: 0, jitter: 0 },
@@ -277,6 +277,8 @@ function layout() {
   drawTower(bgCtx, 0);
   drawTower(bgCtx, 1);
 
+  buildSprinkleBitmaps(k);
+
   for (const c of state.castles) {
     c.layer.width = Math.ceil((CASTLE_W + PAD * 2) * k);
     c.layer.height = Math.ceil((CASTLE_H + PAD * 2) * k);
@@ -495,17 +497,23 @@ function fire(v) {
   state.shot = { mine: taste(state.castles[p]), theirs: taste(state.castles[1 - p]) };
   const m = muzzle(p, v.angle);
   const speed0 = Math.hypot(v.vx, v.vy);
+  let largeHearts = 0;
   for (let i = 0; i < w.count; i++) {
     const a = v.angle + (Math.random() - 0.5) * w.spread;
     const speed = speed0 * (1 + (Math.random() - 0.5) * w.jitter);
+    // sprinkles shoot the pastel mix (at most one large heart per shot)
+    const mix = w.mix ? pickSprinkle(largeHearts > 0) : null;
+    if (mix && mix.el === 'heart-large') largeHearts++;
     state.projectiles.push({
+      ...mix,
+      spin: mix ? (Math.random() - 0.5) * 8 : 0,
       kind: w.kind,
       x: m.x,
       y: m.y,
       vx: Math.cos(a) * speed,
       vy: Math.sin(a) * speed,
-      rot: Math.random() * Math.PI,
-      r: KINDS[w.kind].r,
+      rot: mix ? mix.rot : Math.random() * Math.PI,
+      r: mix ? SPRINKLE_BY_ID[mix.el].r : KINDS[w.kind].r,
       color: w.kind === 'glitter' ? GLITTER[(Math.random() * GLITTER.length) | 0] : CANDY[(Math.random() * CANDY.length) | 0],
       size: 1.2 + Math.random() * 1.2,
       seed: Math.random() * 6,
@@ -543,7 +551,14 @@ function stepProjectile(p, h) {
   const py = p.y;
   p.x += p.vx * h;
   p.y += p.vy * h;
-  if (p.kind === 'sprinkle') p.rot = Math.atan2(p.vy, p.vx);
+  if (p.el) {
+    // mix pieces: jimmies point along their flight, round ones keep their light, the rest tumble a bit
+    const spin = SPRINKLE_BY_ID[p.el].spin;
+    if (spin === 'free') p.rot = Math.atan2(p.vy, p.vx);
+    else if (spin === 'small') p.rot += p.spin * h;
+  } else if (p.kind === 'sprinkle') {
+    p.rot = Math.atan2(p.vy, p.vx);
+  }
 
   if (p.x < -200 || p.x > WORLD_W + 200 || p.y > WORLD_H + 60) return (p.dead = true);
 
@@ -618,7 +633,7 @@ function stepProjectile(p, h) {
   if (Math.hypot(p.vx, p.vy) < 14) {
     p.rest += h;
     if (p.rest > 0.25) {
-      settle({ kind: p.kind, x: p.x, y: p.y, r: p.r, rot: Math.random() * Math.PI, color: p.color, size: p.size, seed: p.seed });
+      settle(landedPiece(p, p.x, p.y));
       p.dead = true;
     }
   } else {
@@ -668,14 +683,36 @@ function settle(piece) {
   drawPiece(litterCtx, piece);
 }
 
+// The piece that stays behind where a projectile lands (castle-local or ground coords).
+function landedPiece(p, x, y) {
+  const el = p.el && SPRINKLE_BY_ID[p.el];
+  return {
+    kind: p.kind,
+    el: p.el,
+    key: p.key,
+    x,
+    y,
+    r: p.r,
+    rot: el ? sprinkleRotation(el) : Math.random() * Math.PI,
+    color: p.color,
+    size: p.size,
+    seed: p.seed,
+  };
+}
+
 function hitCastle(c, p) {
   const K = KINDS[p.kind];
+  const el = p.el && SPRINKLE_BY_ID[p.el];
   const lx = p.x - c.x;
   const ly = p.y - c.y;
-  addToCastle(c, { kind: p.kind, x: lx, y: ly, r: p.r, rot: Math.random() * Math.PI, color: p.color, size: p.size, seed: p.seed });
-  stamp(c, lx, ly, K.stamp, K.value);
+  addToCastle(c, landedPiece(p, lx, ly));
+  stamp(c, lx, ly, el ? el.stamp : K.stamp, el ? el.value : K.value);
 
-  if (p.kind === 'sprinkle') {
+  if (el && el.id === 'heart-large') {
+    Sfx.play(1568, 0.2, 'triangle', 0.12);
+    Sfx.play(2093, 0.25, 'triangle', 0.1, 0, 0.07);
+    sparkle(p.x, p.y);
+  } else if (p.kind === 'sprinkle') {
     Sfx.tick();
   } else if (p.kind === 'glitter') {
     if (Math.random() < 0.2) Sfx.play(2500 + Math.random() * 1500, 0.08, 'sine', 0.04);
@@ -1104,3 +1141,9 @@ buildRounds();
 buildAvatars();
 reset();
 requestAnimationFrame(frame);
+
+// the sprinkle mix art arrives a moment later: redraw everything that shows it
+loadSprinkleArt('assets/sprinkles/', () => {
+  layout();
+  if (state.phase === 'aim') buildWeapons();
+});
