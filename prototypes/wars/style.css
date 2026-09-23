@@ -9,7 +9,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #7a5236;
+  background: #7fcf5f;
   font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
   color: #4a2a35;
   touch-action: none;
@@ -35,32 +35,145 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 0;
-  text-align: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) calc(env(safe-area-inset-right, 0px) + 12px) 0
+    calc(env(safe-area-inset-left, 0px) + 12px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   pointer-events: none;
 }
 
-#turn {
-  font-size: 24px;
-  font-weight: 900;
-  text-shadow: 2px 2px 0 #4a2a35;
-  -webkit-text-stroke: 1px #4a2a35;
+.side {
+  --team: #3d8bff;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  transition: transform 0.2s ease-out;
 }
 
-#round {
-  font-size: 14px;
-  font-weight: 700;
-  opacity: 0.75;
+.side.active {
+  transform: scale(1.08);
+}
+
+.side.active .avatar {
+  box-shadow: 0 0 0 4px #fff, 0 0 16px 6px var(--team);
+}
+
+.avatar {
+  position: relative;
+  z-index: 1;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 4px solid var(--team);
+  background: #fff6e8;
+  box-shadow: 0 0 0 3px #4a2a35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar canvas {
+  width: 40px;
+  height: 40px;
+}
+
+.bar {
+  position: relative;
+  width: min(22vw, 170px);
+  height: 22px;
+  margin: 0 -8px;
+  border: 3px solid #4a2a35;
+  border-radius: 8px;
+  background: #2b3550;
+  overflow: hidden;
+}
+
+.side:not(.right) .bar {
+  padding-left: 8px;
+}
+
+.fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0%;
+  background: var(--team);
+  transition: width 0.3s ease-out;
+}
+
+.right .fill {
+  left: auto;
+  right: 0;
+}
+
+/* segment lines over the fill */
+.bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(16.66% - 2px), rgba(0, 0, 0, 0.35) calc(16.66% - 2px) 16.66%);
+}
+
+.pct {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: 14px;
+  right: 14px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 16px;
+  color: #fff;
+  text-shadow: 0 1px 0 #4a2a35;
+  text-align: center;
+}
+
+#rounds {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 3px solid #4a2a35;
+  border-radius: 12px;
+  background: #8a5a35;
+  box-shadow: 0 3px 0 #4a2a35;
+}
+
+.crown {
+  width: 20px;
+  height: 14px;
+  clip-path: polygon(0 100%, 0 15%, 25% 55%, 50% 0, 75% 55%, 100% 15%, 100% 100%);
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #4a2a35;
+  background: #5a3a25;
+}
+
+.dot.done {
+  background: #fff6e8;
+}
+
+.dot.now {
+  background: #ffcc33;
+  box-shadow: 0 0 8px #ffcc33;
 }
 
 /* ---------- Banner ---------- */
 #banner {
   position: fixed;
   left: 50%;
-  top: 30%;
-  max-width: 86vw;
+  top: 22%;
+  max-width: 80vw;
   transform: translateX(-50%);
-  padding: 10px 18px;
+  padding: 8px 18px;
   border: 3px solid #4a2a35;
   border-radius: 18px;
   background: #fff;
@@ -96,64 +209,88 @@ body {
 }
 
 /* ---------- Weapons ---------- */
+/* sits on the grass under the castle of the player whose turn it is */
 #weapons {
+  --ox: 0px;
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  min-height: 64px;
-  padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 18px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
   display: flex;
-  justify-content: center;
-  gap: 16px;
-  pointer-events: none;
+  gap: 10px;
+  padding: 6px 10px 4px;
+  border: 3px solid #4a2a35;
+  border-radius: 16px;
+  background: rgba(138, 90, 53, 0.92);
+  box-shadow: 0 3px 0 #4a2a35;
+}
+
+#weapons.left {
+  left: max(calc(env(safe-area-inset-left, 0px) + 6px), calc(var(--ox) + 6px));
+}
+
+#weapons.right {
+  right: max(calc(env(safe-area-inset-right, 0px) + 6px), calc(var(--ox) + 6px));
+}
+
+#weapons:empty {
+  display: none;
+}
+
+.weapon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
 }
 
 .weapon-btn {
-  position: relative;
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  border: 4px solid #4a2a35;
-  background: #fff;
-  box-shadow: 0 4px 0 #4a2a35;
+  border: 3px solid #4a2a35;
+  background: #fff6e8;
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: auto;
   touch-action: manipulation;
   cursor: pointer;
   transition: transform 0.12s ease-out;
 }
 
 .weapon-btn canvas {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
 }
 
 .weapon-btn.active {
   background: #ffd84d;
-  transform: translateY(-6px) scale(1.08);
+  transform: translateY(-4px) scale(1.08);
+  box-shadow: 0 0 0 3px #fff;
 }
 
 .weapon-btn:disabled {
   opacity: 0.35;
 }
 
-.ammo {
-  position: absolute;
-  right: -6px;
-  top: -6px;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 6px;
-  border-radius: 12px;
-  border: 3px solid #4a2a35;
-  background: #ff5c9a;
-  color: #fff;
-  font-size: 13px;
+.pips {
+  display: flex;
+  gap: 3px;
+  height: 12px;
+  font-size: 14px;
   font-weight: 900;
-  line-height: 18px;
+  line-height: 12px;
+  color: #fff6e8;
+}
+
+.pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #4a2a35;
+  background: #5a3a25;
+}
+
+.pip.on {
+  background: #ffcc33;
 }
 
 /* ---------- Result ---------- */
@@ -173,37 +310,37 @@ body {
 }
 
 .card {
-  max-width: 340px;
+  max-width: 380px;
   background: #fff;
   border: 4px solid #4a2a35;
   border-radius: 28px;
-  padding: 26px 28px;
+  padding: 20px 28px;
   text-align: center;
   box-shadow: 0 8px 0 #4a2a35;
   animation: pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 #result-title {
-  font-size: 40px;
+  font-size: 38px;
   font-weight: 900;
   text-shadow: 3px 3px 0 #4a2a35;
 }
 
 #result-text {
-  margin: 10px 0 20px;
-  font-size: 17px;
+  margin: 8px 0 16px;
+  font-size: 16px;
   font-weight: 700;
 }
 
 #again {
   font: inherit;
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 800;
   color: #4a2a35;
   background: #ffd84d;
   border: 3px solid #4a2a35;
   border-radius: 999px;
-  padding: 12px 30px;
+  padding: 10px 28px;
   box-shadow: 0 4px 0 #4a2a35;
   cursor: pointer;
 }
@@ -221,5 +358,49 @@ body {
   to {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+/* ---------- Portrait: ask to rotate ---------- */
+#rotate {
+  display: none;
+}
+
+@media (orientation: portrait) {
+  #rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 24px;
+    background: #6ec3ff;
+    font-size: 22px;
+    font-weight: 900;
+    text-align: center;
+  }
+
+  #rotate::before {
+    content: "";
+    width: 60px;
+    height: 100px;
+    border: 5px solid #4a2a35;
+    border-radius: 14px;
+    background: #fff6e8;
+    animation: turn 2s ease-in-out infinite;
+  }
+}
+
+@keyframes turn {
+  0%,
+  30% {
+    transform: rotate(0deg);
+  }
+  60%,
+  100% {
+    transform: rotate(-90deg);
   }
 }

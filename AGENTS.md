@@ -6,6 +6,7 @@ Original art and content only – do not copy other games' names, art or levels.
 ## Tech rules
 - Plain HTML + CSS + vanilla JavaScript + <canvas>. No frameworks, no build step, no npm.
 - Mobile first: portrait, full screen, touch controls (pointer events), works in iPhone Safari.
+  Exception: the Sprinkle Wars prototype (prototypes/wars/) is landscape and asks portrait players to rotate.
 - All graphics drawn in code (canvas shapes/paths) for now – no image files needed.
 - Sounds with the Web Audio API (generated, no audio files) – keep them short and satisfying.
 - Keep code split: index.html, style.css, js/game.js, js/levels.js, js/tools.js, js/audio.js.

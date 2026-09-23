@@ -1,84 +1,105 @@
 'use strict';
 
-// Sprinkle Wars – prototype.
-// Two cakes, turn-based shots over the pond. Every hit decorates the ENEMY's
-// cake. After the last round the capybara eats the tastiest cake – its owner loses.
+// Sprinkle Wars – prototype (landscape).
+// Two cake castles, turn-based cannon shots over the river. Every hit decorates
+// the ENEMY's castle. After the last round the king capybara eats the tastiest
+// castle – its owner loses.
 
 // ---------- UI text ----------
 const STRINGS = {
-  players: ['Pink', 'Blue'],
+  players: ['Blue', 'Pink'],
   turn: (name) => `${name}'s turn`,
-  round: (n, total) => `Round ${n}/${total}`,
-  hint: 'Pull back and let go to shoot at the other cake',
-  yum: (pct) => `Yum ${pct}%`,
-  weapons: { sprinkles: 'Sprinkles', chocoball: 'Golden Chocoball', drip: 'Chocolate Drip' },
-  hungry: 'The capybara is hungry…',
+  hint: 'Pull back and let go to fire at the other cake',
+  weapons: { sprinkles: 'Sprinkles', glitter: 'Glitter', trio: 'Golden Trio', drip: 'Pink Drip' },
+  gain: (pct) => `+${pct}% yum`,
+  oops: 'Oops! Your own cake',
+  miss: 'Miss!',
+  yummier: 'Yummier!',
+  bonk: 'Bonk!',
+  hungry: 'The king is hungry…',
   wins: (name) => `${name} wins!`,
-  ateCake: (name) => `The capybara ate ${name}'s cake – it was too tasty!`,
+  ateCake: (name) => `The king ate ${name}'s cake – it was too tasty!`,
   draw: 'Draw!',
-  ateBoth: 'Both cakes were equally tasty, so the capybara ate both.',
+  ateBoth: 'Both cakes were equally tasty, so the king ate both.',
   playAgain: 'Play again',
+  rotate: 'Turn your phone sideways',
 };
 
 // ---------- Tuning ----------
-const PLAYER_COLORS = ['#ff5c9a', '#4db8ff'];
+const PLAYER_COLORS = ['#3d8bff', '#ff5c9a'];
 const ROUNDS = 5;
 const GRAVITY = 600;
-const MAX_SPEED = 520;
-const MAX_PULL = 140; // world units of pull for full power
+const MAX_SPEED = 640;
+const MAX_PULL = 150; // world units of pull for full power
 const MIN_PULL = 10;
-const PREVIEW_TIME = 0.4; // s of trajectory shown while aiming
-const VIEW = { x: 0, y: 170, w: 400, h: 550 };
-const CELL = 2; // tastiness grid cell, world units
-const MAX_TASTE = 3; // per-cell cap
-const PAD = 26; // extra room around the cake layer (flag, drips)
+const PREVIEW_TIME = 0.35; // s of trajectory shown while aiming
+const CELL = 2.5; // tastiness grid cell, world units
+const MAX_TASTE = 2; // per-cell cap
+const PAD = 40; // extra room around the castle layer (banner, flags, drips)
 const SUBSTEPS = 3;
+const TOPPING_AT = [0.2, 0.4, 0.6, 0.8];
+const TOPPINGS = ['strawberry', 'swirl', 'cherry', 'strawberry'];
 
+// sink: pieces fly up to this far across the castle's front before sticking,
+// so decorations spread over the cake instead of piling up on its edge
 const KINDS = {
-  sprinkle: { r: 2, bounce: 0.25, friction: 14, stamp: 6, value: 1.5 },
-  ball: { r: 5.5, bounce: 0.55, friction: 1.5, stamp: 12, value: 3 },
-  blob: { r: 7, bounce: 0, friction: 30, stamp: 14, value: 1.5 },
+  sprinkle: { r: 2, bounce: 0.25, friction: 14, stamp: 10, value: 1, sink: 50 },
+  glitter: { r: 1.5, bounce: 0.1, friction: 20, stamp: 9, value: 0.7, gravity: 0.35, drag: 1.3, sink: 60 },
+  ball: { r: 6, bounce: 0.55, friction: 1.5, stamp: 19, value: 2, sink: 35 },
+  blob: { r: 9, bounce: 0, friction: 30, stamp: 20, value: 1, sink: 40 },
 };
 
 const WEAPONS = {
-  sprinkles: { ammo: Infinity, count: 22, kind: 'sprinkle' },
-  chocoball: { ammo: 2, count: 1, kind: 'ball' },
-  drip: { ammo: 2, count: 1, kind: 'blob' },
+  sprinkles: { ammo: Infinity, kind: 'sprinkle', count: 30, spread: 0.14, jitter: 0.16 },
+  glitter: { ammo: 2, kind: 'glitter', count: 80, spread: 0.35, jitter: 0.35 },
+  trio: { ammo: 2, kind: 'ball', count: 3, spread: 0.03, jitter: 0.06, stagger: 0.12 },
+  drip: { ammo: 2, kind: 'blob', count: 1, spread: 0, jitter: 0 },
 };
 
-const LAUNCHERS = [
-  { x: 114, y: 511, facing: 1 },
-  { x: 286, y: 511, facing: -1 },
+const CASTLE_X = [30, WORLD_W - 30 - CASTLE_W];
+const CANNONS = [
+  { x: 212, y: 240 },
+  { x: WORLD_W - 212, y: 240 },
 ];
-const CAKE_X = [14, 294];
-
-// capybara stands here to eat cake 0 / cake 1
+const GUNNERS = [
+  { x: 190, y: 248, facing: 1 },
+  { x: WORLD_W - 190, y: 248, facing: -1 },
+];
+const KING_HOME = { x: 400, y: 398 };
+const KING_SCALE = 1.3;
+const KING_RADIUS = 36;
+// the king stands here to eat castle 0 / castle 1
 const EAT_SPOTS = [
-  { x: 134, facing: -1 },
-  { x: 266, facing: 1 },
+  { x: 236, facing: -1 },
+  { x: WORLD_W - 236, facing: 1 },
 ];
+const SIGN_X = 520;
 
 // ---------- DOM ----------
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+const bg = document.createElement('canvas'); // sky, scenery, terrain, towers
+const bgCtx = bg.getContext('2d');
 const litter = document.createElement('canvas'); // pieces that ended up on the ground
 const litterCtx = litter.getContext('2d');
 
 const ui = {
-  hud: document.getElementById('hud'),
-  turn: document.getElementById('turn'),
-  round: document.getElementById('round'),
+  sides: [0, 1].map((i) => document.getElementById(`side${i}`)),
+  fills: [0, 1].map((i) => document.querySelector(`#side${i} .fill`)),
+  pcts: [0, 1].map((i) => document.querySelector(`#side${i} .pct`)),
+  rounds: document.getElementById('rounds'),
   banner: document.getElementById('banner'),
   weapons: document.getElementById('weapons'),
   result: document.getElementById('result'),
   resultTitle: document.getElementById('result-title'),
   resultText: document.getElementById('result-text'),
   again: document.getElementById('again'),
+  rotate: document.getElementById('rotate'),
 };
 
-// ---------- Cake mask (same shape for both cakes) ----------
-const MASK_W = Math.ceil(CAKE_W / CELL);
-const MASK_H = Math.ceil(CAKE_H / CELL);
+// ---------- Castle mask (same shape for both castles) ----------
+const MASK_W = Math.ceil(CASTLE_W / CELL);
+const MASK_H = Math.ceil(CASTLE_H / CELL);
 const MASK = (() => {
   const c = document.createElement('canvas');
   c.width = MASK_W;
@@ -86,7 +107,7 @@ const MASK = (() => {
   const m = c.getContext('2d', { willReadFrequently: true });
   m.setTransform(1 / CELL, 0, 0, 1 / CELL, 0, 0);
   m.beginPath();
-  cakePath(m);
+  castlePath(m);
   m.fill();
   const data = m.getImageData(0, 0, MASK_W, MASK_H).data;
   const mask = new Uint8Array(MASK_W * MASK_H);
@@ -104,7 +125,7 @@ const state = {
   ox: 0,
   oy: 0,
   time: 0,
-  cakes: [],
+  castles: [],
   turn: 0,
   phase: 'aim', // aim | flight | between | finale | over
   timer: 0,
@@ -114,27 +135,31 @@ const state = {
   drips: [],
   litterPieces: [],
   fx: [],
+  texts: [],
   aim: { active: false, id: null, sx: 0, sy: 0, cx: 0, cy: 0 },
-  angles: [-0.9, Math.PI + 0.9],
+  angles: [-0.8, Math.PI + 0.8],
   recoil: [0, 0],
-  capy: null,
-  squeakAt: 0,
+  king: null,
+  shot: null, // tastiness before the current shot
+  heartAt: 0,
+  bonkAt: 0,
 };
 
 function player() {
   return state.turn % 2;
 }
 
-function makeCake(owner) {
+function makeCastle(owner) {
   const layer = document.createElement('canvas');
   return {
     owner,
-    x: CAKE_X[owner],
-    y: GROUND - CAKE_H,
+    x: CASTLE_X[owner],
+    y: GROUND - CASTLE_H,
     cells: new Float32Array(MASK_W * MASK_H),
     sum: 0,
     stuck: [],
     bites: [],
+    toppings: 0,
     eaten: false,
     layer,
     lctx: layer.getContext('2d'),
@@ -145,7 +170,7 @@ function taste(c) {
   return c.sum / (MASK_TOTAL * MAX_TASTE);
 }
 
-function inCake(c, lx, ly) {
+function inCastle(c, lx, ly) {
   const gx = Math.floor(lx / CELL);
   const gy = Math.floor(ly / CELL);
   if (gx < 0 || gy < 0 || gx >= MASK_W || gy >= MASK_H) return false;
@@ -168,19 +193,44 @@ function stamp(c, lx, ly, radius, value) {
       c.cells[i] = next;
     }
   }
+  checkToppings(c);
+}
+
+// Every 20% of tastiness a bonus topping pops onto the castle.
+function checkToppings(c) {
+  while (c.toppings < TOPPING_AT.length && taste(c) >= TOPPING_AT[c.toppings]) {
+    const t = TIERS[(Math.random() * TIERS.length) | 0];
+    const piece = { kind: TOPPINGS[c.toppings], x: t.x + 12 + Math.random() * (t.w - 24), y: t.y + 1 };
+    c.toppings++;
+    addToCastle(c, piece);
+    floatText(STRINGS.yummier, c.x + piece.x, c.y + piece.y - 16, '#ff5c9a');
+    sparkle(c.x + piece.x, c.y + piece.y);
+    Sfx.ding();
+  }
+}
+
+function addToCastle(c, piece) {
+  c.stuck.push(piece);
+  castleTransform(c);
+  drawPiece(c.lctx, piece);
 }
 
 // ---------- Setup ----------
 function reset() {
-  state.cakes = [makeCake(0), makeCake(1)];
+  state.castles = [makeCastle(0), makeCastle(1)];
   state.turn = 0;
   state.projectiles = [];
   state.drips = [];
   state.litterPieces = [];
   state.fx = [];
-  state.ammo = [0, 1].map(() => ({ sprinkles: Infinity, chocoball: WEAPONS.chocoball.ammo, drip: WEAPONS.drip.ammo }));
+  state.texts = [];
+  state.ammo = [0, 1].map(() => {
+    const a = {};
+    for (const id of Object.keys(WEAPONS)) a[id] = WEAPONS[id].ammo;
+    return a;
+  });
   state.weapon = 'sprinkles';
-  state.capy = { x: 200, y: WATER_Y + 16, look: 0, facing: 1, mouth: 0, happy: false, blinkAt: 2 };
+  state.king = { x: KING_HOME.x, y: KING_HOME.y, facing: 1, look: 0, mouth: 0, happy: false, blinkAt: 2, bonk: 0 };
   ui.result.classList.add('hidden');
   layout();
   startTurn(true);
@@ -191,11 +241,9 @@ function startTurn(first) {
   state.aim.active = false;
   const p = player();
   if (state.ammo[p][state.weapon] <= 0) state.weapon = 'sprinkles';
-  ui.turn.textContent = STRINGS.turn(STRINGS.players[p]);
-  ui.turn.style.color = PLAYER_COLORS[p];
-  ui.round.textContent = STRINGS.round(Math.floor(state.turn / 2) + 1, ROUNDS);
+  updateHud();
   buildWeapons();
-  showBanner(first ? STRINGS.hint : STRINGS.turn(STRINGS.players[p]), first ? '#4a2a35' : PLAYER_COLORS[p]);
+  showBanner(first ? STRINGS.hint : STRINGS.turn(STRINGS.players[p]), first ? OUTLINE : PLAYER_COLORS[p]);
 }
 
 // ---------- Layout ----------
@@ -203,67 +251,118 @@ function layout() {
   state.dpr = Math.min(window.devicePixelRatio || 1, 3);
   state.W = window.innerWidth;
   state.H = window.innerHeight;
-  canvas.width = Math.round(state.W * state.dpr);
-  canvas.height = Math.round(state.H * state.dpr);
+  canvas.width = bg.width = Math.round(state.W * state.dpr);
+  canvas.height = bg.height = Math.round(state.H * state.dpr);
 
-  const top = ui.hud.getBoundingClientRect().bottom + 4;
-  const bottom = ui.weapons.getBoundingClientRect().top - 4;
-  const availH = Math.max(100, bottom - top);
-  state.scale = Math.min(state.W / VIEW.w, availH / VIEW.h);
-  state.ox = (state.W - VIEW.w * state.scale) / 2 - VIEW.x * state.scale;
-  // pond sits just above the buttons; any extra height becomes sky
-  state.oy = bottom - (VIEW.y + VIEW.h) * state.scale;
-
+  state.scale = Math.min(state.W / WORLD_W, state.H / WORLD_H);
+  state.ox = (state.W - WORLD_W * state.scale) / 2;
+  state.oy = (state.H - WORLD_H * state.scale) / 2;
+  ui.weapons.style.setProperty('--ox', `${state.ox}px`);
   const k = state.scale * state.dpr;
-  for (const c of state.cakes) {
-    c.layer.width = Math.ceil((CAKE_W + PAD * 2) * k);
-    c.layer.height = Math.ceil((CAKE_H + PAD * 2) * k);
-    redrawCake(c);
+
+  // bake the static scenery
+  bgCtx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+  drawSky(bgCtx, state.W, state.H);
+  bgCtx.setTransform(k, 0, 0, k, state.dpr * state.ox, state.dpr * state.oy);
+  drawBackdrop(bgCtx);
+  drawTerrain(bgCtx);
+  drawTower(bgCtx, 0);
+  drawTower(bgCtx, 1);
+
+  for (const c of state.castles) {
+    c.layer.width = Math.ceil((CASTLE_W + PAD * 2) * k);
+    c.layer.height = Math.ceil((CASTLE_H + PAD * 2) * k);
+    redrawCastle(c);
   }
-  litter.width = Math.ceil(VIEW.w * k);
-  litter.height = Math.ceil(VIEW.h * k);
-  litterCtx.setTransform(k, 0, 0, k, -VIEW.x * k, -VIEW.y * k);
+  litter.width = Math.ceil(WORLD_W * k);
+  litter.height = Math.ceil(WORLD_H * k);
+  litterCtx.setTransform(k, 0, 0, k, 0, 0);
   for (const p of state.litterPieces) drawPiece(litterCtx, p);
+
+  ui.rotate.textContent = STRINGS.rotate;
 }
 
-function cakeTransform(c) {
+function castleTransform(c) {
   const k = state.scale * state.dpr;
   c.lctx.setTransform(k, 0, 0, k, PAD * k, PAD * k);
 }
 
-function redrawCake(c) {
+function redrawCastle(c) {
   c.lctx.setTransform(1, 0, 0, 1, 0, 0);
   c.lctx.clearRect(0, 0, c.layer.width, c.layer.height);
   if (c.eaten) return;
-  cakeTransform(c);
-  drawCakeBase(c.lctx);
+  castleTransform(c);
+  drawCastle(c.lctx, PLAYER_COLORS[c.owner], c.owner);
   for (const p of c.stuck) drawPiece(c.lctx, p);
-  drawFlag(c.lctx, PLAYER_COLORS[c.owner]);
-  for (const b of c.bites) biteCake(c, b, false);
+  for (const b of c.bites) biteCastle(c, b, false);
 }
 
-function biteCake(c, b, remember = true) {
+function biteCastle(c, b, remember = true) {
   if (remember) c.bites.push(b);
   c.lctx.save();
   c.lctx.globalCompositeOperation = 'destination-out';
   c.lctx.beginPath();
   c.lctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-  c.lctx.arc(b.x + b.r * 0.2, b.y + b.r * 0.85, b.r * 0.7, 0, Math.PI * 2);
-  c.lctx.arc(b.x + b.r * 0.1, b.y - b.r * 0.85, b.r * 0.7, 0, Math.PI * 2);
+  c.lctx.arc(b.x + b.r * 0.3, b.y + b.r * 0.8, b.r * 0.65, 0, Math.PI * 2);
+  c.lctx.arc(b.x - b.r * 0.2, b.y - b.r * 0.85, b.r * 0.65, 0, Math.PI * 2);
   c.lctx.fill();
   c.lctx.restore();
 }
 
-function toWorld(sx, sy) {
-  return { x: (sx - state.ox) / state.scale, y: (sy - state.oy) / state.scale };
+// ---------- HUD ----------
+function updateHud() {
+  const p = player();
+  for (let i = 0; i < 2; i++) {
+    const t = state.castles[i] ? taste(state.castles[i]) : 0;
+    ui.fills[i].style.width = `${Math.min(100, t * 100)}%`;
+    ui.pcts[i].textContent = `${Math.round(t * 100)}%`;
+    ui.sides[i].classList.toggle('active', state.phase === 'aim' && p === i);
+  }
+  const round = Math.floor(state.turn / 2);
+  [...ui.rounds.querySelectorAll('.dot')].forEach((d, i) => {
+    d.classList.toggle('done', i < round || state.phase === 'finale' || state.phase === 'over');
+    d.classList.toggle('now', i === round && state.phase !== 'finale' && state.phase !== 'over');
+  });
 }
 
-// ---------- Weapons UI ----------
+function buildRounds() {
+  ui.rounds.textContent = '';
+  const crown = (i) => {
+    const el = document.createElement('span');
+    el.className = 'crown';
+    el.style.background = PLAYER_COLORS[i];
+    return el;
+  };
+  ui.rounds.appendChild(crown(0));
+  for (let i = 0; i < ROUNDS; i++) {
+    const d = document.createElement('span');
+    d.className = 'dot';
+    ui.rounds.appendChild(d);
+  }
+  ui.rounds.appendChild(crown(1));
+}
+
+function buildAvatars() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  for (let i = 0; i < 2; i++) {
+    const cv = ui.sides[i].querySelector('canvas');
+    cv.width = cv.height = 40 * dpr;
+    const c = cv.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawCakeIcon(c);
+    ui.sides[i].style.setProperty('--team', PLAYER_COLORS[i]);
+  }
+}
+
 function buildWeapons() {
   ui.weapons.textContent = '';
+  ui.weapons.className = player() === 0 ? 'left' : 'right';
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
   const ammo = state.ammo[player()];
   for (const id of Object.keys(WEAPONS)) {
+    const wrap = document.createElement('div');
+    wrap.className = 'weapon';
+
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'weapon-btn';
@@ -278,11 +377,16 @@ function buildWeapons() {
     WEAPON_ICONS[id](ictx);
     btn.appendChild(icon);
 
-    if (ammo[id] !== Infinity) {
-      const badge = document.createElement('span');
-      badge.className = 'ammo';
-      badge.textContent = ammo[id];
-      btn.appendChild(badge);
+    const pips = document.createElement('div');
+    pips.className = 'pips';
+    if (WEAPONS[id].ammo === Infinity) {
+      pips.textContent = '∞';
+    } else {
+      for (let i = 0; i < WEAPONS[id].ammo; i++) {
+        const pip = document.createElement('span');
+        pip.className = i < ammo[id] ? 'pip on' : 'pip';
+        pips.appendChild(pip);
+      }
     }
 
     btn.addEventListener('pointerdown', (e) => {
@@ -292,7 +396,9 @@ function buildWeapons() {
       buildWeapons();
       Sfx.play(900, 0.06, 'triangle', 0.1);
     });
-    ui.weapons.appendChild(btn);
+    wrap.appendChild(btn);
+    wrap.appendChild(pips);
+    ui.weapons.appendChild(wrap);
   }
 }
 
@@ -309,8 +415,8 @@ function showBanner(text, color) {
 
 // ---------- Aiming ----------
 function muzzle(p, angle) {
-  const L = LAUNCHERS[p];
-  return { x: L.x + Math.cos(angle) * 22, y: L.y + Math.sin(angle) * 22 };
+  const C = CANNONS[p];
+  return { x: C.x + Math.cos(angle) * 28, y: C.y + Math.sin(angle) * 28 };
 }
 
 // Launch velocity from the current pull (null when the pull is too short).
@@ -362,12 +468,12 @@ function fire(v) {
   if (w.ammo !== Infinity) state.ammo[p][state.weapon]--;
   state.angles[p] = v.angle;
   state.recoil[p] = 1;
+  state.shot = { mine: taste(state.castles[p]), theirs: taste(state.castles[1 - p]) };
   const m = muzzle(p, v.angle);
+  const speed0 = Math.hypot(v.vx, v.vy);
   for (let i = 0; i < w.count; i++) {
-    // a sprinkle shot is a spray: small random differences in speed and angle
-    const spread = w.count > 1 ? 1 : 0;
-    const a = v.angle + (Math.random() - 0.5) * 0.14 * spread;
-    const speed = Math.hypot(v.vx, v.vy) * (1 + (Math.random() - 0.5) * 0.16 * spread);
+    const a = v.angle + (Math.random() - 0.5) * w.spread;
+    const speed = speed0 * (1 + (Math.random() - 0.5) * w.jitter);
     state.projectiles.push({
       kind: w.kind,
       x: m.x,
@@ -376,50 +482,85 @@ function fire(v) {
       vy: Math.sin(a) * speed,
       rot: Math.random() * Math.PI,
       r: KINDS[w.kind].r,
-      color: CANDY[(Math.random() * CANDY.length) | 0],
+      color: w.kind === 'glitter' ? GLITTER[(Math.random() * GLITTER.length) | 0] : CANDY[(Math.random() * CANDY.length) | 0],
+      size: 1.2 + Math.random() * 1.2,
       seed: Math.random() * 6,
       rest: 0,
+      delay: (w.stagger || 0) * i,
     });
   }
   state.phase = 'flight';
   state.timer = 0;
   buildWeapons();
-  Sfx.noise(0.25, 0.25, 700, 0, 2500);
-  Sfx.play(220, 0.12, 'sine', 0.25, 90);
+  updateHud();
+  smoke(m.x, m.y);
+  Sfx.noise(0.3, 0.3, 500, 0, 2500);
+  Sfx.play(160, 0.15, 'sine', 0.3, 60);
+  if (state.weapon === 'glitter') for (let i = 0; i < 5; i++) Sfx.play(2400 + i * 300, 0.2, 'sine', 0.05, 0, 0.1 + i * 0.05);
+  if (state.weapon === 'trio') {
+    Sfx.play(160, 0.12, 'sine', 0.25, 60, 0.12);
+    Sfx.play(160, 0.12, 'sine', 0.25, 60, 0.24);
+  }
 }
 
 // ---------- Physics ----------
 function stepProjectile(p, h) {
+  if (p.delay > 0) {
+    p.delay -= h;
+    return;
+  }
   const K = KINDS[p.kind];
-  p.vy += GRAVITY * h;
+  p.vy += GRAVITY * (K.gravity || 1) * h;
+  if (K.drag) {
+    p.vx *= 1 - K.drag * h;
+    p.vy *= 1 - K.drag * h;
+  }
   const px = p.x;
+  const py = p.y;
   p.x += p.vx * h;
   p.y += p.vy * h;
   if (p.kind === 'sprinkle') p.rot = Math.atan2(p.vy, p.vx);
 
-  if (p.x < -60 || p.x > 460 || p.y > 780) return (p.dead = true);
+  if (p.x < -200 || p.x > WORLD_W + 200 || p.y > WORLD_H + 60) return (p.dead = true);
 
   if (isWater(p.x, p.y)) {
-    splash(p.x, WATER_Y, p.kind === 'sprinkle' ? 3 : 10);
-    if (p.kind !== 'sprinkle') Sfx.play(700, 0.12, 'sine', 0.18, 200);
+    const small = p.kind === 'sprinkle' || p.kind === 'glitter';
+    splash(p.x, WATER_Y, small ? 2 : 10);
+    if (!small) Sfx.play(700, 0.12, 'sine', 0.18, 200);
     return (p.dead = true);
   }
 
-  for (const c of state.cakes) {
-    if (!c.eaten && inCake(c, p.x - c.x, p.y - c.y)) {
-      hitCake(c, p);
+  if (bounceOffKing(p)) return;
+
+  for (const c of state.castles) {
+    if (c.eaten) continue;
+    if (inCastle(c, p.x - c.x, p.y - c.y)) {
+      if (p.sink === undefined) p.sink = Math.random() * K.sink;
+      p.sunk = (p.sunk || 0) + Math.hypot(p.x - px, p.y - py);
+      p.lastIn = { c, x: p.x, y: p.y };
+      if (p.sunk >= p.sink) {
+        hitCastle(c, p);
+        return (p.dead = true);
+      }
+    } else if (p.lastIn && p.lastIn.c === c) {
+      // flew out the other side before sticking: stick where it left
+      p.x = p.lastIn.x;
+      p.y = p.lastIn.y;
+      hitCastle(c, p);
       return (p.dead = true);
     }
   }
 
   const g = groundY(p.x);
-  if (p.y + p.r <= g) {
-    p.onGround = false;
-    return;
+  if (p.y + p.r <= g) return;
+  if (p.lastIn) {
+    p.x = p.lastIn.x;
+    p.y = p.lastIn.y;
+    hitCastle(p.lastIn.c, p);
+    return (p.dead = true);
   }
   const depth = p.y + p.r - g;
   if (depth > 10) {
-    // ran into a steep cliff side: bounce back horizontally
     p.x = px;
     p.vx = -p.vx * K.bounce;
     return;
@@ -449,17 +590,48 @@ function stepProjectile(p, h) {
   const vt = (p.vx * tx + p.vy * ty) * Math.max(0, 1 - K.friction * h);
   p.vx = vn * nx + vt * tx;
   p.vy = vn * ny + vt * ty;
-  p.onGround = true;
 
   if (Math.hypot(p.vx, p.vy) < 14) {
     p.rest += h;
     if (p.rest > 0.25) {
-      settle({ kind: p.kind, x: p.x, y: p.y, r: p.r, rot: Math.random() * Math.PI, color: p.color, seed: p.seed });
+      settle({ kind: p.kind, x: p.x, y: p.y, r: p.r, rot: Math.random() * Math.PI, color: p.color, size: p.size, seed: p.seed });
       p.dead = true;
     }
   } else {
     p.rest = 0;
   }
+}
+
+function kingCenter() {
+  const k = state.king;
+  return { x: k.x + k.facing * 10, y: k.y - 34 * KING_SCALE };
+}
+
+// The king sits in the river: shots bounce off him.
+function bounceOffKing(p) {
+  if (state.phase === 'finale' || state.phase === 'over') return false;
+  const c = kingCenter();
+  const dx = p.x - c.x;
+  const dy = p.y - c.y;
+  const d = Math.hypot(dx, dy);
+  const R = KING_RADIUS + p.r;
+  if (d >= R || d === 0) return false;
+  const nx = dx / d;
+  const ny = dy / d;
+  p.x = c.x + nx * R;
+  p.y = c.y + ny * R;
+  const vn = p.vx * nx + p.vy * ny;
+  if (vn < 0) {
+    p.vx -= 1.6 * vn * nx;
+    p.vy -= 1.6 * vn * ny;
+  }
+  state.king.bonk = 0.35;
+  if (state.time > state.bonkAt) {
+    state.bonkAt = state.time + 0.6;
+    Sfx.play(300, 0.15, 'sine', 0.2, 600);
+    floatText(STRINGS.bonk, c.x, c.y - 50, OUTLINE);
+  }
+  return true;
 }
 
 function slopeAngle(x) {
@@ -468,22 +640,21 @@ function slopeAngle(x) {
 
 function settle(piece) {
   state.litterPieces.push(piece);
-  if (state.litterPieces.length > 900) state.litterPieces.shift();
+  if (state.litterPieces.length > 1200) state.litterPieces.shift();
   drawPiece(litterCtx, piece);
 }
 
-function hitCake(c, p) {
+function hitCastle(c, p) {
   const K = KINDS[p.kind];
   const lx = p.x - c.x;
   const ly = p.y - c.y;
-  const piece = { kind: p.kind, x: lx, y: ly, r: p.r, rot: Math.random() * Math.PI, color: p.color, seed: p.seed };
-  c.stuck.push(piece);
-  cakeTransform(c);
-  drawPiece(c.lctx, piece);
+  addToCastle(c, { kind: p.kind, x: lx, y: ly, r: p.r, rot: Math.random() * Math.PI, color: p.color, size: p.size, seed: p.seed });
   stamp(c, lx, ly, K.stamp, K.value);
 
   if (p.kind === 'sprinkle') {
     Sfx.tick();
+  } else if (p.kind === 'glitter') {
+    if (Math.random() < 0.2) Sfx.play(2500 + Math.random() * 1500, 0.08, 'sine', 0.04);
   } else if (p.kind === 'ball') {
     Sfx.play(1320, 0.18, 'triangle', 0.15);
     Sfx.play(1760, 0.2, 'triangle', 0.1, 0, 0.06);
@@ -491,22 +662,21 @@ function hitCake(c, p) {
   } else {
     Sfx.noise(0.18, 0.3, 350);
     Sfx.play(200, 0.15, 'sine', 0.2, 110);
-    const n = 2 + ((Math.random() * 2) | 0);
+    const n = 3 + ((Math.random() * 2) | 0);
     for (let i = 0; i < n; i++) {
       state.drips.push({
-        cake: c,
+        castle: c,
         kind: 'drip',
-        x: lx + (i - (n - 1) / 2) * p.r * 0.9,
+        x: lx + (i - (n - 1) / 2) * p.r * 0.8,
         y: ly,
         len: 0,
-        max: 12 + Math.random() * 35,
-        w: 3.5 + Math.random() * 2.5,
-        speed: 40 + Math.random() * 25,
+        max: 18 + Math.random() * 45,
+        w: 4 + Math.random() * 3,
+        speed: 45 + Math.random() * 30,
         stamped: 0,
       });
     }
   }
-  reactCapybara();
 }
 
 function updateDrips(dt) {
@@ -515,22 +685,23 @@ function updateDrips(dt) {
     d.speed *= 1 - 0.5 * dt;
     const tip = d.y + d.len;
     if (d.len - d.stamped >= 3) {
-      stamp(d.cake, d.x, tip, d.w / 2 + 2, 1);
+      stamp(d.castle, d.x, tip, d.w / 2 + 2, 1);
       d.stamped = d.len;
     }
-    if (d.len < d.max && inCake(d.cake, d.x, tip - 2) && !d.cake.eaten) return true;
-    const piece = { kind: 'drip', x: d.x, y: d.y, len: d.len, w: d.w };
-    d.cake.stuck.push(piece);
-    cakeTransform(d.cake);
-    drawPiece(d.cake.lctx, piece);
+    if (d.len < d.max && inCastle(d.castle, d.x, tip - 2) && !d.castle.eaten) return true;
+    addToCastle(d.castle, { kind: 'drip', x: d.x, y: d.y, len: d.len, w: d.w });
     return false;
   });
 }
 
 // ---------- Effects ----------
+function pick(list) {
+  return list[(Math.random() * list.length) | 0];
+}
+
 function splash(x, y, n) {
   for (let i = 0; i < n; i++) {
-    state.fx.push({ kind: 'drop', x, y, vx: (Math.random() - 0.5) * 120, vy: -60 - Math.random() * 120, life: 0.6, color: '#bfe9ff', size: 2 });
+    state.fx.push({ kind: 'drop', x, y, vx: (Math.random() - 0.5) * 120, vy: -60 - Math.random() * 120, life: 0.6, color: '#d8f3ff', size: 2 });
   }
 }
 
@@ -541,145 +712,173 @@ function sparkle(x, y) {
   }
 }
 
+function smoke(x, y) {
+  for (let i = 0; i < 6; i++) {
+    state.fx.push({ kind: 'puff', x, y, vx: (Math.random() - 0.5) * 40, vy: -20 - Math.random() * 30, life: 0.6, color: 'rgba(255, 255, 255, 0.8)', size: 4 + Math.random() * 4 });
+  }
+}
+
 function crumbs(x, y) {
   for (let i = 0; i < 12; i++) {
     state.fx.push({
       kind: 'drop',
       x,
       y,
-      vx: (Math.random() - 0.5) * 160,
-      vy: -40 - Math.random() * 140,
+      vx: (Math.random() - 0.5) * 180,
+      vy: -40 - Math.random() * 160,
       life: 0.9,
-      color: pick(['#fff3e0', '#ffffff', '#f2d3a8', ...CANDY]),
-      size: 2 + Math.random() * 2,
+      color: pick(['#f3c77e', '#fff6e8', '#dca663', PINK_ICING, ...CANDY]),
+      size: 2 + Math.random() * 2.5,
     });
   }
 }
 
-function hearts(x, y) {
-  for (let i = 0; i < 5; i++) {
-    state.fx.push({ kind: 'heart', x: x + (Math.random() - 0.5) * 30, y, vx: (Math.random() - 0.5) * 20, vy: -40 - Math.random() * 30, life: 1.6, color: '#ff5c9a', size: 5 });
+function hearts(x, y, n = 5) {
+  for (let i = 0; i < n; i++) {
+    state.fx.push({ kind: 'heart', x: x + (Math.random() - 0.5) * 30, y, vx: (Math.random() - 0.5) * 20, vy: -35 - Math.random() * 30, life: 1.6, color: '#ff5c9a', size: 5 });
   }
 }
 
-function pick(list) {
-  return list[(Math.random() * list.length) | 0];
+function floatText(text, x, y, color) {
+  state.texts.push({ text, x, y, color, life: 1.4 });
 }
 
 function updateFx(dt) {
   for (const f of state.fx) {
-    if (f.kind !== 'heart') f.vy += GRAVITY * 0.8 * dt;
+    if (f.kind === 'drop' || f.kind === 'spark') f.vy += GRAVITY * 0.8 * dt;
+    if (f.kind === 'puff') f.size += 12 * dt;
     f.x += f.vx * dt;
     f.y += f.vy * dt;
     f.life -= dt;
   }
   state.fx = state.fx.filter((f) => f.life > 0);
+  for (const t of state.texts) {
+    t.y -= 22 * dt;
+    t.life -= dt;
+  }
+  state.texts = state.texts.filter((t) => t.life > 0);
 }
 
-// ---------- Capybara ----------
-function reactCapybara() {
-  if (state.time < state.squeakAt) return;
-  state.squeakAt = state.time + 1.2;
-  Sfx.play(1500, 0.06, 'sine', 0.08, 1900);
-  Sfx.play(1600, 0.06, 'sine', 0.08, 2100, 0.09);
-}
-
-function capyLookTarget() {
-  const d = taste(state.cakes[1]) - taste(state.cakes[0]);
-  return Math.max(-1, Math.min(1, d * 12));
+// ---------- King capybara ----------
+function tasteDiff() {
+  return taste(state.castles[1]) - taste(state.castles[0]);
 }
 
 function startFinale() {
   state.phase = 'finale';
-  const [a, b] = state.cakes.map(taste);
-  const targets = Math.abs(a - b) < 0.002 ? [0, 1] : [a > b ? 0 : 1];
-  const capy = state.capy;
-  capy.script = [{ type: 'sniff', t: 0, dur: 1.8 }];
+  const [a, b] = state.castles.map(taste);
+  // a draw only when the bars show the same number
+  const targets = Math.round(a * 100) === Math.round(b * 100) ? [0, 1] : [a > b ? 0 : 1];
+  const king = state.king;
+  king.script = [{ type: 'sniff', t: 0, dur: 1.8 }];
   for (const i of targets) {
-    capy.script.push({ type: 'hop', t: 0, dur: 0.7, cake: i });
-    capy.script.push({ type: 'eat', t: 0, dur: 6 * 0.42, cake: i, bites: 0 });
+    king.script.push({ type: 'hop', t: 0, dur: 0.8, castle: i });
+    king.script.push({ type: 'eat', t: 0, castle: i });
   }
-  capy.script.push({ type: 'done', t: 0, dur: 1.2 });
-  capy.targets = targets;
+  king.script.push({ type: 'done', t: 0, dur: 1.3 });
+  king.targets = targets;
   ui.weapons.textContent = '';
-  ui.turn.textContent = STRINGS.hungry;
-  ui.turn.style.color = '#b07a4c';
-  ui.round.textContent = '';
+  updateHud();
+  showBanner(STRINGS.hungry, '#8a5a35');
 }
 
-function updateCapybara(dt) {
-  const capy = state.capy;
-  capy.blinkAt -= dt;
-  if (capy.blinkAt < -0.12) capy.blinkAt = 2 + Math.random() * 3;
+// Bite positions covering the castle, starting from the side the king stands on.
+function planBites(castleIndex) {
+  const bites = [];
+  for (let y = 24; y < CASTLE_H; y += 38) {
+    for (let x = 16; x < CASTLE_W; x += 38) {
+      if (inCastle(state.castles[castleIndex], x, y) || inCastle(state.castles[castleIndex], x, y + 14)) {
+        bites.push({ x: x + (Math.random() - 0.5) * 8, y: y + (Math.random() - 0.5) * 8, r: 30 });
+      }
+    }
+  }
+  const dir = EAT_SPOTS[castleIndex].facing; // -1: eating from the right side
+  bites.sort((p, q) => (dir < 0 ? q.x - p.x : p.x - q.x) + (q.y - p.y) * 0.1);
+  return bites;
+}
+
+function updateKing(dt) {
+  const king = state.king;
+  king.blinkAt -= dt;
+  if (king.blinkAt < -0.12) king.blinkAt = 2 + Math.random() * 3;
+  king.bonk = Math.max(0, king.bonk - dt);
 
   if (state.phase !== 'finale') {
-    capy.look += (capyLookTarget() - capy.look) * Math.min(1, dt * 3);
-    capy.facing = capy.look >= 0 ? 1 : -1;
+    const d = tasteDiff();
+    king.look += (Math.max(-1, Math.min(1, d * 12)) - king.look) * Math.min(1, dt * 3);
+    king.facing = king.look >= 0 ? 1 : -1;
+    // swoons at the tastier cake now and then
+    if (Math.abs(d) > 0.03 && state.time > state.heartAt && state.phase !== 'over') {
+      state.heartAt = state.time + 2.5;
+      const c = kingCenter();
+      hearts(c.x + king.facing * 30, c.y - 40, 3);
+    }
     return;
   }
 
-  const step = capy.script[0];
+  const step = king.script[0];
   if (!step) return;
   step.t += dt;
-  const k = Math.min(1, step.t / step.dur);
 
   if (step.type === 'sniff') {
-    capy.facing = Math.sin(step.t * 7) > 0 ? 1 : -1;
-    if (k > 0.75) capy.facing = capy.targets[0] === 0 ? -1 : 1;
+    king.facing = Math.sin(step.t * 7) > 0 ? 1 : -1;
+    if (step.t > step.dur * 0.75) king.facing = king.targets[0] === 0 ? -1 : 1;
     if (Math.random() < dt * 3) Sfx.noise(0.08, 0.06, 2500);
   } else if (step.type === 'hop') {
     if (!step.from) {
-      step.from = { x: capy.x, y: capy.y };
+      step.from = { x: king.x, y: king.y };
       Sfx.play(300, 0.3, 'sine', 0.2, 700);
-      splash(capy.x, WATER_Y, 12);
+      splash(king.x, WATER_Y, 16);
     }
-    const spot = EAT_SPOTS[step.cake];
-    const toY = groundY(spot.x);
-    capy.facing = spot.facing;
-    capy.x = step.from.x + (spot.x - step.from.x) * k;
-    capy.y = step.from.y + (toY - step.from.y) * k - Math.sin(Math.PI * k) * 90;
+    const k = Math.min(1, step.t / step.dur);
+    const spot = EAT_SPOTS[step.castle];
+    king.facing = spot.facing;
+    king.x = step.from.x + (spot.x - step.from.x) * k;
+    king.y = step.from.y + (GROUND - step.from.y) * k - Math.sin(Math.PI * k) * 110;
   } else if (step.type === 'eat') {
-    const c = state.cakes[step.cake];
-    const phase = (step.t / 0.42) % 1;
-    capy.mouth = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-    const bitesDue = Math.min(6, Math.floor(step.t / 0.42 + 0.5));
-    while (step.bites < bitesDue) {
-      const i = step.bites++;
-      const dir = EAT_SPOTS[step.cake].facing; // -1: eating from the right side
-      const bx = dir < 0 ? CAKE_W - 6 - i * 18 : 6 + i * 18;
-      biteCake(c, { x: bx, y: 18 + Math.random() * 38, r: 20 });
-      crumbs(c.x + bx, c.y + 40);
+    const c = state.castles[step.castle];
+    if (!step.bites) {
+      step.bites = planBites(step.castle);
+      step.done = 0;
+      step.dur = step.bites.length * 0.3 + 0.2;
+    }
+    const phase = (step.t / 0.3) % 1;
+    king.mouth = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
+    king.y = GROUND - Math.abs(Math.sin((step.t / 0.3) * Math.PI)) * 6;
+    const due = Math.min(step.bites.length, Math.floor(step.t / 0.3 + 0.5));
+    while (step.done < due) {
+      const b = step.bites[step.done++];
+      biteCastle(c, b);
+      crumbs(c.x + b.x, c.y + b.y);
       Sfx.noise(0.12, 0.35, 900);
       Sfx.play(140, 0.08, 'square', 0.08, 90);
-      capy.x += dir * 14;
-      capy.y = groundY(capy.x);
-      if (i === 5) {
+      if (step.done === step.bites.length) {
         c.eaten = true;
-        redrawCake(c);
+        redrawCastle(c);
       }
     }
   } else if (step.type === 'done') {
-    capy.mouth = 0;
-    if (!capy.happy) {
-      capy.happy = true;
-      hearts(capy.x, capy.y - 60);
+    king.mouth = 0;
+    if (!king.happy) {
+      king.happy = true;
+      hearts(king.x, king.y - 80, 7);
       Sfx.sweet();
     }
   }
 
-  if (k >= 1) {
-    capy.script.shift();
-    if (!capy.script.length) showResult();
+  if (step.dur !== undefined && step.t >= step.dur) {
+    king.script.shift();
+    if (!king.script.length) showResult();
   }
 }
 
 function showResult() {
   state.phase = 'over';
-  const t = state.capy.targets;
+  const t = state.king.targets;
   if (t.length > 1) {
     ui.resultTitle.textContent = STRINGS.draw;
     ui.resultText.textContent = STRINGS.ateBoth;
-    ui.resultTitle.style.color = '#4a2a35';
+    ui.resultTitle.style.color = OUTLINE;
   } else {
     const loser = t[0];
     const winner = 1 - loser;
@@ -692,6 +891,23 @@ function showResult() {
 }
 
 // ---------- Update ----------
+function endOfShot() {
+  const p = player();
+  const theirs = taste(state.castles[1 - p]) - state.shot.theirs;
+  const mine = taste(state.castles[p]) - state.shot.mine;
+  const target = state.castles[1 - p];
+  const own = state.castles[p];
+  if (theirs >= 0.002) {
+    floatText(STRINGS.gain(Math.max(1, Math.round(theirs * 100))), target.x + CASTLE_W / 2, target.y - 10, PLAYER_COLORS[p]);
+  } else if (mine < 0.002) {
+    floatText(STRINGS.miss, target.x + CASTLE_W / 2, target.y - 10, OUTLINE);
+  }
+  if (mine >= 0.002) {
+    floatText(STRINGS.oops, own.x + CASTLE_W / 2, own.y - 10, OUTLINE);
+    Sfx.play(400, 0.25, 'triangle', 0.15, 200);
+  }
+}
+
 function update(dt) {
   state.time += dt;
   const h = dt / SUBSTEPS;
@@ -701,68 +917,87 @@ function update(dt) {
   state.projectiles = state.projectiles.filter((p) => !p.dead);
   updateDrips(dt);
   updateFx(dt);
-  updateCapybara(dt);
-  for (let i = 0; i < 2; i++) state.recoil[i] = Math.max(0, state.recoil[i] - dt * 5);
+  updateKing(dt);
+  for (let i = 0; i < 2; i++) state.recoil[i] = Math.max(0, state.recoil[i] - dt * 4);
 
   if (state.phase === 'flight') {
     state.timer += dt;
     if ((!state.projectiles.length && !state.drips.length) || state.timer > 8) {
       state.projectiles = [];
+      endOfShot();
+      updateHud();
       state.phase = 'between';
       state.timer = 0;
     }
   } else if (state.phase === 'between') {
     state.timer += dt;
-    if (state.timer > 0.6) {
+    if (state.timer > 0.9) {
       state.turn++;
       if (state.turn >= ROUNDS * 2) startFinale();
       else startTurn(false);
     }
   }
+  if (state.phase === 'flight' && Math.random() < dt * 8) updateHud();
 }
 
 // ---------- Render ----------
 function render() {
   const { dpr, scale } = state;
   const k = dpr * scale;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  drawSky(ctx, state.W, state.H);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(bg, 0, 0);
 
   ctx.setTransform(k, 0, 0, k, dpr * state.ox, dpr * state.oy);
-  drawBackdrop(ctx, state.time);
-  drawTerrain(ctx);
-  ctx.drawImage(litter, VIEW.x, VIEW.y, VIEW.w, VIEW.h);
+  ctx.drawImage(litter, 0, 0, WORLD_W, WORLD_H);
 
-  for (const c of state.cakes) {
-    ctx.drawImage(c.layer, c.x - PAD, c.y - PAD, CAKE_W + PAD * 2, CAKE_H + PAD * 2);
+  for (const c of state.castles) {
+    ctx.drawImage(c.layer, c.x - PAD, c.y - PAD, CASTLE_W + PAD * 2, CASTLE_H + PAD * 2);
   }
   for (const d of state.drips) {
     ctx.save();
-    ctx.translate(d.cake.x, d.cake.y);
+    ctx.translate(d.castle.x, d.castle.y);
     drawPiece(ctx, d);
     ctx.restore();
   }
 
   for (let i = 0; i < 2; i++) {
-    const L = LAUNCHERS[i];
+    const G = GUNNERS[i];
+    const hop = state.recoil[i] > 0 ? Math.sin(state.recoil[i] * Math.PI) * 6 : Math.sin(state.time * 2 + i) * 0.8;
+    const cheering = state.phase === 'over' && state.king.targets && !state.king.targets.includes(i);
+    drawCapybara(ctx, G.x, G.y - hop, { facing: G.facing, s: 0.45, blink: state.king.blinkAt < 0, happy: cheering });
+    const C = CANNONS[i];
     const active = state.phase === 'aim' && player() === i;
-    drawLauncher(ctx, L.x, L.y, state.angles[i], PLAYER_COLORS[i], state.recoil[i], active);
+    drawCannon(ctx, C.x, C.y, state.angles[i], PLAYER_COLORS[i], state.recoil[i], active);
   }
 
-  const capy = state.capy;
-  drawCapybara(ctx, capy.x, capy.y + (state.phase === 'aim' || state.phase === 'flight' || state.phase === 'between' ? Math.sin(state.time * 2) * 1.5 : 0), {
-    facing: capy.facing,
-    s: 0.85,
-    mouth: capy.mouth,
-    blink: capy.blinkAt < 0,
-    happy: capy.happy,
-  });
-  drawWater(ctx, state.time);
+  const king = state.king;
+  const inRiver = state.phase !== 'finale' && state.phase !== 'over';
+  const kingOpts = {
+    facing: king.facing,
+    s: KING_SCALE * (1 + king.bonk * 0.15),
+    mouth: king.mouth,
+    blink: king.blinkAt < 0 || king.bonk > 0,
+    happy: king.happy,
+    crown: true,
+  };
+  const bob = inRiver ? Math.sin(state.time * 1.6) * 1.5 : 0;
+  if (inRiver) drawCapybara(ctx, king.x, king.y + bob, kingOpts);
+  drawRiver(ctx, state.time);
+  const d = tasteDiff();
+  if (Math.abs(d) > 0.01 && inRiver) drawSign(ctx, SIGN_X, d > 0 ? 1 : -1);
+  if (!inRiver) drawCapybara(ctx, king.x, king.y, kingOpts);
 
-  for (const p of state.projectiles) drawPiece(ctx, p);
+  for (const p of state.projectiles) {
+    if (p.delay > 0) continue;
+    if (p.kind === 'glitter') {
+      drawPiece(ctx, { ...p, size: p.size * (0.7 + 0.5 * Math.abs(Math.sin(state.time * 12 + p.seed))) });
+    } else {
+      drawPiece(ctx, p);
+    }
+  }
   drawAimPreview();
-  drawMeters();
   drawFx();
+  drawTexts();
 }
 
 function drawAimPreview() {
@@ -783,45 +1018,18 @@ function drawAimPreview() {
     if (y > groundY(x)) break;
     if (i % 3 === 0) {
       ctx.beginPath();
-      ctx.arc(x, y, 2.4 - i / 60, 0, Math.PI * 2);
+      ctx.arc(x, y, 3 - i / 40, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     }
   }
-  // power ring around the launcher
-  const L = LAUNCHERS[player()];
+  const C = CANNONS[player()];
   ctx.strokeStyle = PLAYER_COLORS[player()];
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 3.5;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.arc(L.x, L.y, 28, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * v.power);
+  ctx.arc(C.x, C.y, 34, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * v.power);
   ctx.stroke();
-}
-
-function drawMeters() {
-  for (const c of state.cakes) {
-    if (c.eaten) continue;
-    const pct = Math.round(taste(c) * 100);
-    const x = c.x + CAKE_W / 2 - 32;
-    const y = c.y - 34;
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = PLAYER_COLORS[c.owner];
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(x, y, 64, 17, 8.5) : ctx.rect(x, y, 64, 17);
-    ctx.fill();
-    ctx.save();
-    ctx.clip();
-    ctx.fillStyle = '#ffd1e3';
-    ctx.fillRect(x, y, 64 * taste(c), 17);
-    ctx.restore();
-    ctx.stroke();
-    ctx.fillStyle = '#4a2a35';
-    ctx.font = 'bold 10px ui-rounded, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(STRINGS.yum(pct), x + 32, y + 9);
-  }
 }
 
 function drawFx() {
@@ -842,6 +1050,22 @@ function drawFx() {
   ctx.globalAlpha = 1;
 }
 
+function drawTexts() {
+  ctx.font = '900 15px ui-rounded, "SF Pro Rounded", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  for (const t of state.texts) {
+    ctx.globalAlpha = Math.min(1, t.life * 2);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#ffffff';
+    ctx.strokeText(t.text, t.x, t.y);
+    ctx.fillStyle = t.color;
+    ctx.fillText(t.text, t.x, t.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
 // ---------- Loop ----------
 let last = performance.now();
 function frame(now) {
@@ -852,5 +1076,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+buildRounds();
+buildAvatars();
 reset();
 requestAnimationFrame(frame);

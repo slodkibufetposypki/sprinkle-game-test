@@ -14,12 +14,13 @@
 
 ## In progress
 - **Sprinkle Wars prototype** (prototypes/wars/, online at https://slodkibufetposypki.github.io/sprinkle-game-test/prototypes/wars/)
-  - Two players on one phone, 5 rounds each: pull back and let go to shoot over the ridge and pond.
-  - Weapons: Sprinkles (spray), Golden Chocoball (bounces/rolls, 2 ammo), Chocolate Drip (splat + drips, 2 ammo).
-  - Hits decorate the enemy cake; "Yum %" meters; the capybara in the pond looks at the tastier cake.
-  - Finale: capybara hops out, eats the tastiest cake bite by bite, hearts; result popup + Play again.
-  - Reuses js/audio.js (added `Sfx.play` and `Sfx.noise` helpers).
-  - Next: playtest with a real person on iPhone, then tune power/ridge/values; decide if this becomes the main game.
+  - v2 (after the user's concept image): landscape, tiered cake castles with cannon towers + capybara gunners, king capybara with crown in the river (shots bounce off him), candy-land backdrop.
+  - Weapons: Sprinkles (unlimited), Glitter, Golden Trio, Pink Drip (2 each), weapon bar under the active player's castle.
+  - HUD: player badges with segmented yum bars, round tracker with crowns; floating "+X% yum" / "Miss!" / "Oops!"; bonus toppings every 20%; signpost points at the tastier cake.
+  - Finale: king eats the tastiest castle bite by bite; draw when both bars show the same %.
+  - Simulated match (scripted aim): good sprinkle volley ≈ +11%, match ends around 35–40% each.
+  - Reuses js/audio.js (`Sfx.play`, `Sfx.noise`).
+  - Next: playtest with a real person on iPhone (landscape), tune power/values; decide on real artwork; decide if this becomes the main game.
 
 ## Next steps
 5. Title screen, level select, stars saved (win time is already measured: `state.elapsed`).

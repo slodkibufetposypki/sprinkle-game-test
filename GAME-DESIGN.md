@@ -49,11 +49,20 @@ Accounts, ads, in-app purchases, online leaderboards, App Store wrapping.
 
 # Direction being tested: "Sprinkle Wars" (prototype, prototypes/wars/)
 The v0.1 loop above has no challenge (you can't fail). This prototype tests a physics/skill direction.
+Visual target: the user's concept image (candy-land kingdom, cake castles, capybara crews, king capybara in the river).
 
-- **Setup:** two plain cakes on plateaus, a ridge in front of each, a pond between them where a capybara waits.
-- **Turns:** players alternate shots (5 rounds each). Pull back and let go to aim/shoot; a short trajectory preview shows only the start of the arc.
-- **Twist:** every hit decorates the *enemy's* cake. At the end the capybara eats the **tastiest** cake – its owner loses. So you want to make the enemy cake as delicious as possible, and avoid spilling onto your own.
-- **Weapons:** Sprinkles (spray, unlimited), Golden Chocoball (heavy, bounces/rolls, 2 per game), Chocolate Drip (blob that splats and drips down, 2 per game).
-- **Tastiness ("Yum %"):** coverage of the cake weighted by decoration value, capped per spot – spreading shots over the cake beats hitting the same spot.
-- **Capybara:** watches from the pond and turns towards the tastier cake during play (live feedback); at the end it hops out and eats the winner-by-tastiness. The capybara may change as the game progresses (future idea).
-- **Open questions:** computer opponent, wind, more weapons (glitter, gold leaf), special terrain, defenses (umbrella?), capybara variants, whether the name "Sprinkle Wars" is free to use.
+- **Screen:** landscape (portrait players get a "turn your phone sideways" screen).
+- **Setup:** two tiered cake castles (Blue left, Pink right) on river banks, each with a wooden cannon tower and a capybara gunner. The **king capybara** (with crown) sits in the river between them.
+- **Turns:** players alternate shots, 5 rounds each (round tracker with crowns at the top). Pull back and let go to fire; a short trajectory preview shows only the start of the arc.
+- **Twist:** every hit decorates the *enemy's* castle. At the end the king eats the **tastiest** castle – its owner loses. So decorate the enemy cake as well as you can and don't spill on your own.
+- **Weapons** (weapon bar appears under the active player's castle, ammo pips under each):
+  - Sprinkles – spray, unlimited.
+  - Glitter – big floaty sparkle cloud (low gravity, air drag), 2 per game.
+  - Golden Trio – three heavy golden balls fired in a row, bounce/roll, 2 per game.
+  - Pink Drip – icing blob that splats and drips down the tiers, 2 per game.
+- **Hits:** pieces travel a short random distance across the castle front before sticking, so decorations spread over the cake.
+- **The king is an obstacle:** shots bounce off him ("Bonk!").
+- **Tastiness ("yum %"):** coverage weighted by decoration value, capped per spot; shown as segmented bars next to each player's badge. Every 20% a bonus topping pops on (strawberry, cream swirl, cherry). After each shot: "+X% yum", "Miss!" or "Oops! Your own cake".
+- **Feedback:** the king faces the tastier castle, swoons hearts at it, and a signpost on the bank points to it.
+- **Finale:** the king hops out and eats the tastiest castle bite by bite. Draw (same % shown) → he eats both.
+- **Open questions:** real artwork (AI-generated vs illustrator), computer opponent, wind, defenses, capybara variants over time, whether the name "Sprinkle Wars" is free to use.

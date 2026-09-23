@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#8fd3ff">
+  <meta name="theme-color" content="#6ec3ff">
   <title>Sprinkle Wars (prototype)</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -13,8 +13,15 @@
   <canvas id="game"></canvas>
 
   <div id="hud">
-    <div id="turn"></div>
-    <div id="round"></div>
+    <div class="side" id="side0">
+      <div class="avatar"><canvas></canvas></div>
+      <div class="bar"><div class="fill"></div><span class="pct"></span></div>
+    </div>
+    <div id="rounds"></div>
+    <div class="side right" id="side1">
+      <div class="bar"><div class="fill"></div><span class="pct"></span></div>
+      <div class="avatar"><canvas></canvas></div>
+    </div>
   </div>
 
   <div id="banner"></div>
@@ -27,6 +34,8 @@
       <button id="again" type="button"></button>
     </div>
   </div>
+
+  <div id="rotate"></div>
 
   <script src="../../js/audio.js"></script>
   <script src="js/art.js"></script>
