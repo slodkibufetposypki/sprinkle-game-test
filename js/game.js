@@ -4,15 +4,26 @@
 const STRINGS = {
   levels: {
     cupcake: 'Cupcake',
+    donut: 'Donut',
+    cake: 'Birthday Cake',
+    cone: 'Ice Cream Cone',
+    cookie: 'Cookie',
   },
+  tools: {
+    sprinkles: 'Sprinkles',
+    nonpareils: 'Nonpareils',
+    chocolate: 'Chocolate Drip',
+  },
+  levelTitle: (n, name) => `${n}. ${name}`,
   coverage: (pct, goal) => `${pct}% · goal ${goal}%`,
+  newTool: (name) => `New tool: ${name}!`,
   sweet: 'Sweet!',
   doneIn: (seconds) => `Done in ${seconds} s`,
+  next: 'Next',
   playAgain: 'Play again',
 };
 
 // ---------- Tuning ----------
-const BOTTOM_SPACE = 110; // px kept free at the bottom (tool picker comes later)
 const SIDE_MARGIN = 16;
 const CELL = 3; // coverage grid cell size, in level units
 const LAND_TIME = 0.16; // s, landing bounce
@@ -37,10 +48,13 @@ const ui = {
   winTitle: document.getElementById('win-title'),
   winTime: document.getElementById('win-time'),
   winBtn: document.getElementById('win-btn'),
+  tools: document.getElementById('tools'),
+  toast: document.getElementById('toast'),
 };
 
 // ---------- State ----------
 const state = {
+  levelIndex: 0,
   level: null,
   tool: TOOLS.sprinkles,
   // screen layout
@@ -61,6 +75,7 @@ const state = {
   // pieces
   stuck: [], // pieces that landed on the object (level units)
   live: [], // landing or falling pieces
+  growing: [], // pieces that keep changing after they stick (chocolate drips)
   confetti: [], // screen-space celebration particles
   // input
   pointer: { id: null, down: false, x: 0, y: 0, px: 0, py: 0 },
@@ -74,10 +89,14 @@ const state = {
 };
 
 // ---------- Level setup ----------
-function loadLevel(level) {
+function loadLevel(index) {
+  const level = LEVELS[index];
+  const prevTools = index > 0 ? LEVELS[index - 1].tools : [];
+  state.levelIndex = index;
   state.level = level;
   state.stuck = [];
   state.live = [];
+  state.growing = [];
   state.confetti = [];
   state.coveredCount = 0;
   state.shownPct = -1;
@@ -87,9 +106,17 @@ function loadLevel(level) {
   state.shake = 0;
 
   document.body.style.background = level.bg;
-  ui.levelName.textContent = STRINGS.levels[level.id];
+  ui.levelName.textContent = STRINGS.levelTitle(index + 1, STRINGS.levels[level.id]);
   ui.meterGoal.style.left = `${level.target * 100}%`;
   ui.win.classList.add('hidden');
+
+  // pick the tool introduced in this level, else keep the current one if allowed
+  const newTools = level.tools.filter((id) => !prevTools.includes(id));
+  const newest = index > 0 ? newTools[newTools.length - 1] : null;
+  if (newest) state.tool = TOOLS[newest];
+  else if (!level.tools.includes(state.tool.id)) state.tool = TOOLS[level.tools[0]];
+  buildToolPicker(level, newest);
+  if (newest) showToast(STRINGS.newTool(STRINGS.tools[newest]));
 
   buildMask(level);
   layout();
@@ -107,7 +134,7 @@ function buildMask(level) {
   m.setTransform(1 / CELL, 0, 0, 1 / CELL, 0, 0);
   m.beginPath();
   level.coverPath(m);
-  m.fill();
+  m.fill(level.fillRule || 'nonzero');
   const data = m.getImageData(0, 0, gw, gh).data;
 
   state.gridW = gw;
@@ -157,6 +184,60 @@ function coverage() {
   return state.total ? state.coveredCount / state.total : 0;
 }
 
+// ---------- Tool picker ----------
+const ICON_SIZE = 40; // tool icons are drawn in a 40×40 box
+
+function buildToolPicker(level, newest) {
+  ui.tools.textContent = '';
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  for (const id of level.tools) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tool-btn';
+    btn.dataset.tool = id;
+    btn.setAttribute('aria-label', STRINGS.tools[id]);
+    if (id === newest) btn.classList.add('is-new');
+
+    const icon = document.createElement('canvas');
+    icon.width = icon.height = ICON_SIZE * dpr;
+    const ictx = icon.getContext('2d');
+    ictx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    TOOLS[id].drawIcon(ictx);
+    btn.appendChild(icon);
+
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      Sfx.unlock();
+      selectTool(id);
+    });
+    ui.tools.appendChild(btn);
+  }
+  markActiveTool();
+}
+
+function selectTool(id) {
+  state.tool = TOOLS[id];
+  state.emitBudget = 0;
+  markActiveTool();
+}
+
+function markActiveTool() {
+  for (const btn of ui.tools.children) {
+    btn.classList.toggle('active', btn.dataset.tool === state.tool.id);
+  }
+}
+
+let toastTimer = 0;
+function showToast(text) {
+  ui.toast.textContent = text;
+  ui.toast.classList.remove('show');
+  void ui.toast.offsetWidth; // restart the CSS animation
+  ui.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => ui.toast.classList.remove('show'), 2200);
+  Sfx.ding();
+}
+
 // ---------- Layout ----------
 function layout() {
   const level = state.level;
@@ -170,8 +251,9 @@ function layout() {
   }
 
   const top = ui.hud.getBoundingClientRect().bottom + 12;
+  const bottom = ui.tools.getBoundingClientRect().top - 12;
   const availW = state.W - SIDE_MARGIN * 2;
-  const availH = Math.max(100, state.H - top - BOTTOM_SPACE);
+  const availH = Math.max(100, bottom - top);
   state.scale = Math.min(availW / level.box.w, availH / level.box.h);
   state.ox = (state.W - level.box.w * state.scale) / 2;
   state.oy = top + (availH - level.box.h * state.scale) / 2;
@@ -226,7 +308,7 @@ canvas.addEventListener('pointercancel', endPointer);
 
 ui.winBtn.addEventListener('click', () => {
   Sfx.unlock();
-  loadLevel(state.level);
+  loadLevel((state.levelIndex + 1) % LEVELS.length);
 });
 
 window.addEventListener('resize', layout);
@@ -249,19 +331,35 @@ function emit(dt) {
     const piece = tool.create(at.x + Math.cos(a) * r, at.y + Math.sin(a) * r);
     state.live.push({ piece, mode: 'landing', t: 0, vx: 0, vy: 0, vr: 0 });
   }
-  if (n > 0) Sfx.tick();
+  if (n > 0) Sfx[tool.sound]();
 
   p.px = p.x;
   p.py = p.y;
 }
 
+// What tools can do to the object from their hooks (onStick / grow).
+const toolApi = {
+  isInside,
+  stamp,
+  addGrower: (piece) => state.growing.push(piece),
+  get playing() {
+    return state.phase === 'playing';
+  },
+};
+
+function stick(piece) {
+  state.stuck.push(piece);
+  TOOLS[piece.tool].draw(dctx, piece);
+}
+
 function land(q) {
   const piece = q.piece;
+  const tool = TOOLS[piece.tool];
   if (isInside(piece.x, piece.y)) {
     q.dead = true;
-    state.stuck.push(piece);
-    TOOLS[piece.tool].draw(dctx, piece);
-    if (state.phase === 'playing') stamp(piece.x, piece.y, TOOLS[piece.tool].coverRadius);
+    stick(piece);
+    if (state.phase === 'playing') stamp(piece.x, piece.y, tool.coverRadius);
+    if (tool.onStick) tool.onStick(piece, toolApi);
   } else {
     // missed the object: hop and fall off the screen
     q.mode = 'falling';
@@ -288,6 +386,12 @@ function update(dt) {
     }
   }
   state.live = state.live.filter((q) => !q.dead);
+
+  state.growing = state.growing.filter((g) => {
+    if (!TOOLS[g.tool].grow(g, dt, toolApi)) return true;
+    stick(g);
+    return false;
+  });
 
   for (const c of state.confetti) {
     c.vy += 900 * dt;
@@ -351,7 +455,8 @@ function win() {
 function showWinPopup() {
   ui.winTitle.textContent = STRINGS.sweet;
   ui.winTime.textContent = STRINGS.doneIn(state.elapsed.toFixed(1));
-  ui.winBtn.textContent = STRINGS.playAgain;
+  const isLast = state.levelIndex === LEVELS.length - 1;
+  ui.winBtn.textContent = isLast ? STRINGS.playAgain : STRINGS.next;
   ui.win.classList.remove('hidden');
 }
 
@@ -385,9 +490,10 @@ function render() {
   ctx.setTransform(dpr, 0, 0, dpr, dpr * sx, dpr * sy);
   ctx.drawImage(decor, 0, 0, W, H);
 
-  // top layer + pieces in flight
+  // growing drips, top layer, pieces in flight
   ctx.setTransform(k, 0, 0, k, dpr * (state.ox + sx), dpr * (state.oy + sy));
-  if (level.drawTop) level.drawTop(ctx);
+  for (const g of state.growing) TOOLS[g.tool].draw(ctx, g);
+  if (level.drawTop) level.drawTop(ctx, performance.now() / 1000);
   for (const q of state.live) {
     const tool = TOOLS[q.piece.tool];
     if (q.mode === 'landing') {
@@ -425,5 +531,5 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-loadLevel(LEVELS[0]);
+loadLevel(0);
 requestAnimationFrame(frame);

@@ -43,6 +43,23 @@ const Sfx = (() => {
     tone(1500 + Math.random() * 900, now, 0.045, 'triangle', 0.06, 1000);
   }
 
+  // Soft low "blop" for chocolate.
+  function blop() {
+    if (!ac || ac.state !== 'running') return;
+    const now = ac.currentTime;
+    if (now - lastTick < 0.12) return;
+    lastTick = now;
+    tone(260 + Math.random() * 80, now, 0.09, 'sine', 0.18, 120);
+  }
+
+  // Bright "ding" when a new tool appears.
+  function ding() {
+    if (!ac || ac.state !== 'running') return;
+    const now = ac.currentTime;
+    tone(1318.5, now, 0.25, 'triangle', 0.15);
+    tone(1760, now + 0.08, 0.3, 'triangle', 0.12);
+  }
+
   // Happy rising arpeggio + sparkles for "Sweet!".
   function sweet() {
     if (!ac || ac.state !== 'running') return;
@@ -55,5 +72,5 @@ const Sfx = (() => {
     }
   }
 
-  return { unlock, tick, sweet };
+  return { unlock, tick, blop, ding, sweet };
 })();
