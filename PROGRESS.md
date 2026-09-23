@@ -20,6 +20,7 @@
   - Finale: king eats the tastiest castle bite by bite; draw when both bars show the same %.
   - Simulated match (scripted aim): good sprinkle volley ≈ +11%, match ends around 35–40% each.
   - Reuses js/audio.js (`Sfx.play`, `Sfx.noise`).
+  - Fits short screens (iPhone Safari with toolbars in landscape ≈ 874×292): UI scales with screen height, empty top sky may be cropped, weapons go into a column in the side margin when there's room (respects the notch), otherwise a row under the active castle.
   - Next: playtest with a real person on iPhone (landscape), tune power/values; decide on real artwork; decide if this becomes the main game.
 
 ## Next steps

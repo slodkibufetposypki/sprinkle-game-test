@@ -37,6 +37,7 @@ const CELL = 2.5; // tastiness grid cell, world units
 const MAX_TASTE = 2; // per-cell cap
 const PAD = 40; // extra room around the castle layer (banner, flags, drips)
 const SUBSTEPS = 3;
+const SKY_CROP = 45; // world units of empty sky that may be cut off at the top
 const TOPPING_AT = [0.2, 0.4, 0.6, 0.8];
 const TOPPINGS = ['strawberry', 'swirl', 'cherry', 'strawberry'];
 
@@ -120,6 +121,7 @@ const MASK_TOTAL = MASK.reduce((a, b) => a + b, 0);
 const state = {
   W: 0,
   H: 0,
+  u: 1,
   dpr: 1,
   scale: 1,
   ox: 0,
@@ -254,10 +256,16 @@ function layout() {
   canvas.width = bg.width = Math.round(state.W * state.dpr);
   canvas.height = bg.height = Math.round(state.H * state.dpr);
 
-  state.scale = Math.min(state.W / WORLD_W, state.H / WORLD_H);
+  // UI shrinks on short screens (e.g. Safari with its toolbars in landscape)
+  state.u = Math.max(0.62, Math.min(1, state.H / 430));
+  document.documentElement.style.setProperty('--u', state.u.toFixed(3));
+
+  // the empty sky at the very top may be cut off (the HUD sits there anyway)
+  const viewH = WORLD_H - SKY_CROP;
+  state.scale = Math.min(state.W / WORLD_W, state.H / viewH);
   state.ox = (state.W - WORLD_W * state.scale) / 2;
-  state.oy = (state.H - WORLD_H * state.scale) / 2;
-  ui.weapons.style.setProperty('--ox', `${state.ox}px`);
+  state.oy = (state.H - viewH * state.scale) / 2 - SKY_CROP * state.scale;
+  placeWeapons();
   const k = state.scale * state.dpr;
 
   // bake the static scenery
@@ -354,9 +362,25 @@ function buildAvatars() {
   }
 }
 
+// Weapon bar: a column in the empty side margin when there's room for it,
+// otherwise a row on the grass under the active player's castle.
+function placeWeapons() {
+  const u = state.u;
+  const side = player() === 0 ? 'left' : 'right';
+  const safe = getComputedStyle(document.getElementById('safe'));
+  const inset = parseFloat(side === 'left' ? safe.paddingLeft : safe.paddingRight) || 0;
+  const btn = 52 * u;
+  const colW = btn + 20 * u + 6;
+  const colH = 4 * (btn + 15 * u) + 40 * u + 6;
+  const hudBottom = document.getElementById('hud').getBoundingClientRect().bottom;
+  const column = state.ox - inset >= colW + 12 && state.H - hudBottom - 8 >= colH;
+  ui.weapons.className = `${side}${column ? ' column' : ''}`;
+  ui.weapons.style.setProperty('--ox', `${state.ox}px`);
+}
+
 function buildWeapons() {
   ui.weapons.textContent = '';
-  ui.weapons.className = player() === 0 ? 'left' : 'right';
+  placeWeapons();
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
   const ammo = state.ammo[player()];
   for (const id of Object.keys(WEAPONS)) {

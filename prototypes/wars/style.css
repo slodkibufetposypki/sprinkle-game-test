@@ -4,6 +4,10 @@
   padding: 0;
 }
 
+:root {
+  --u: 1;
+}
+
 html,
 body {
   width: 100%;
@@ -35,7 +39,7 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  padding: calc(env(safe-area-inset-top, 0px) + 8px) calc(env(safe-area-inset-right, 0px) + 12px) 0
+  padding: calc(env(safe-area-inset-top, 0px) + 8px * var(--u)) calc(env(safe-area-inset-right, 0px) + 12px) 0
     calc(env(safe-area-inset-left, 0px) + 12px);
   display: flex;
   align-items: center;
@@ -63,10 +67,10 @@ body {
 .avatar {
   position: relative;
   z-index: 1;
-  width: 50px;
-  height: 50px;
+  width: calc(50px * var(--u));
+  height: calc(50px * var(--u));
   border-radius: 50%;
-  border: 4px solid var(--team);
+  border: calc(4px * var(--u)) solid var(--team);
   background: #fff6e8;
   box-shadow: 0 0 0 3px #4a2a35;
   display: flex;
@@ -75,14 +79,14 @@ body {
 }
 
 .avatar canvas {
-  width: 40px;
-  height: 40px;
+  width: calc(40px * var(--u));
+  height: calc(40px * var(--u));
 }
 
 .bar {
   position: relative;
-  width: min(22vw, 170px);
-  height: 22px;
+  width: min(22vw, calc(170px * var(--u)));
+  height: calc(22px * var(--u));
   margin: 0 -8px;
   border: 3px solid #4a2a35;
   border-radius: 8px;
@@ -124,9 +128,9 @@ body {
   bottom: 0;
   left: 14px;
   right: 14px;
-  font-size: 12px;
+  font-size: calc(12px * var(--u));
   font-weight: 900;
-  line-height: 16px;
+  line-height: calc(22px * var(--u) - 6px);
   color: #fff;
   text-shadow: 0 1px 0 #4a2a35;
   text-align: center;
@@ -135,8 +139,8 @@ body {
 #rounds {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: calc(6px * var(--u));
+  padding: calc(6px * var(--u)) calc(12px * var(--u));
   border: 3px solid #4a2a35;
   border-radius: 12px;
   background: #8a5a35;
@@ -144,14 +148,14 @@ body {
 }
 
 .crown {
-  width: 20px;
-  height: 14px;
+  width: calc(20px * var(--u));
+  height: calc(14px * var(--u));
   clip-path: polygon(0 100%, 0 15%, 25% 55%, 50% 0, 75% 55%, 100% 15%, 100% 100%);
 }
 
 .dot {
-  width: 12px;
-  height: 12px;
+  width: calc(12px * var(--u));
+  height: calc(12px * var(--u));
   border-radius: 50%;
   border: 2px solid #4a2a35;
   background: #5a3a25;
@@ -177,7 +181,7 @@ body {
   border: 3px solid #4a2a35;
   border-radius: 18px;
   background: #fff;
-  font-size: 18px;
+  font-size: calc(18px * var(--u));
   font-weight: 800;
   text-align: center;
   pointer-events: none;
@@ -215,8 +219,8 @@ body {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
   display: flex;
-  gap: 10px;
-  padding: 6px 10px 4px;
+  gap: calc(10px * var(--u));
+  padding: calc(6px * var(--u)) calc(10px * var(--u)) calc(4px * var(--u));
   border: 3px solid #4a2a35;
   border-radius: 16px;
   background: rgba(138, 90, 53, 0.92);
@@ -231,6 +235,29 @@ body {
   right: max(calc(env(safe-area-inset-right, 0px) + 6px), calc(var(--ox) + 6px));
 }
 
+/* enough empty space beside the scene: a column in the side margin */
+#weapons.column {
+  flex-direction: column;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+}
+
+#weapons.column.left {
+  left: calc(env(safe-area-inset-left, 0px) + 6px);
+}
+
+#weapons.column.right {
+  right: calc(env(safe-area-inset-right, 0px) + 6px);
+}
+
+/* reads the phone's safe-area insets (notch) for JS */
+#safe {
+  position: fixed;
+  visibility: hidden;
+  pointer-events: none;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
 #weapons:empty {
   display: none;
 }
@@ -243,8 +270,8 @@ body {
 }
 
 .weapon-btn {
-  width: 52px;
-  height: 52px;
+  width: calc(52px * var(--u));
+  height: calc(52px * var(--u));
   border-radius: 50%;
   border: 3px solid #4a2a35;
   background: #fff6e8;
@@ -257,8 +284,8 @@ body {
 }
 
 .weapon-btn canvas {
-  width: 36px;
-  height: 36px;
+  width: calc(36px * var(--u));
+  height: calc(36px * var(--u));
 }
 
 .weapon-btn.active {
@@ -274,16 +301,16 @@ body {
 .pips {
   display: flex;
   gap: 3px;
-  height: 12px;
-  font-size: 14px;
+  height: calc(12px * var(--u));
+  font-size: calc(14px * var(--u));
   font-weight: 900;
-  line-height: 12px;
+  line-height: calc(12px * var(--u));
   color: #fff6e8;
 }
 
 .pip {
-  width: 10px;
-  height: 10px;
+  width: calc(10px * var(--u));
+  height: calc(10px * var(--u));
   border-radius: 50%;
   border: 2px solid #4a2a35;
   background: #5a3a25;
