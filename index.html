@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#ffe3ee">
+  <title>Sprinkle Everything</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div id="level-name"></div>
+    <div id="meter">
+      <div id="meter-fill"></div>
+      <div id="meter-goal"></div>
+    </div>
+    <div id="meter-text"></div>
+  </div>
+
+  <div id="win" class="hidden">
+    <div class="win-card">
+      <h1 id="win-title"></h1>
+      <p id="win-time"></p>
+      <button id="win-btn" type="button"></button>
+    </div>
+  </div>
+
+  <script src="js/audio.js"></script>
+  <script src="js/tools.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
