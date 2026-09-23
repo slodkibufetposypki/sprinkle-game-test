@@ -13,7 +13,13 @@
 - Sounds (audio.js): ticks (sprinkles/nonpareils), blop (chocolate), ding (new tool), "Sweet!" fanfare. Audio unlocks on first touch (iOS). iPhone: unlocks on a finished tap, plays even with the silent switch on (audioSession "playback" on iOS 17+, silent looping <audio> on older iOS).
 
 ## In progress
-- (nothing)
+- **Sprinkle Wars prototype** (prototypes/wars/, online at https://slodkibufetposypki.github.io/sprinkle-game-test/prototypes/wars/)
+  - Two players on one phone, 5 rounds each: pull back and let go to shoot over the ridge and pond.
+  - Weapons: Sprinkles (spray), Golden Chocoball (bounces/rolls, 2 ammo), Chocolate Drip (splat + drips, 2 ammo).
+  - Hits decorate the enemy cake; "Yum %" meters; the capybara in the pond looks at the tastier cake.
+  - Finale: capybara hops out, eats the tastiest cake bite by bite, hearts; result popup + Play again.
+  - Reuses js/audio.js (added `Sfx.play` and `Sfx.noise` helpers).
+  - Next: playtest with a real person on iPhone, then tune power/ridge/values; decide if this becomes the main game.
 
 ## Next steps
 5. Title screen, level select, stars saved (win time is already measured: `state.elapsed`).

@@ -130,12 +130,44 @@ const Sfx = (() => {
     }
   }
 
+  // General-purpose tone, e.g. Sfx.play(440, 0.1, 'sine', 0.2, 220, 0.05).
+  function play(freq, dur, type = 'sine', vol = 0.2, slideTo = 0, delay = 0) {
+    if (!ac || ac.state !== 'running') return;
+    tone(freq, ac.currentTime + delay, dur, type, vol, slideTo);
+  }
+
+  // Filtered noise burst: splats, chomps, whooshes.
+  function noise(dur, vol = 0.2, freq = 1200, delay = 0, freqTo = 0) {
+    if (!ac || ac.state !== 'running') return;
+    const start = ac.currentTime + delay;
+    const len = Math.max(1, Math.floor(ac.sampleRate * dur));
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    const filter = ac.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(freq, start);
+    if (freqTo) filter.frequency.exponentialRampToValueAtTime(freqTo, start + dur);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(vol, start + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    src.start(start);
+  }
+
   return {
     unlock,
     tick,
     blop,
     ding,
     sweet,
+    play,
+    noise,
     // for debugging in the console: 'none' | 'suspended' | 'running' | 'interrupted'
     get state() {
       return ac ? ac.state : 'none';

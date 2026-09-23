@@ -1,0 +1,225 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #7a5236;
+  font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #4a2a35;
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* ---------- HUD ---------- */
+#hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 0;
+  text-align: center;
+  pointer-events: none;
+}
+
+#turn {
+  font-size: 24px;
+  font-weight: 900;
+  text-shadow: 2px 2px 0 #4a2a35;
+  -webkit-text-stroke: 1px #4a2a35;
+}
+
+#round {
+  font-size: 14px;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+/* ---------- Banner ---------- */
+#banner {
+  position: fixed;
+  left: 50%;
+  top: 30%;
+  max-width: 86vw;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border: 3px solid #4a2a35;
+  border-radius: 18px;
+  background: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+}
+
+#banner.show {
+  animation: banner 1.8s ease-out forwards;
+}
+
+@keyframes banner {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 16px) scale(0.7);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.05);
+  }
+  20%,
+  78% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -10px) scale(1);
+  }
+}
+
+/* ---------- Weapons ---------- */
+#weapons {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 64px;
+  padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 18px);
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.weapon-btn {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 4px solid #4a2a35;
+  background: #fff;
+  box-shadow: 0 4px 0 #4a2a35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  touch-action: manipulation;
+  cursor: pointer;
+  transition: transform 0.12s ease-out;
+}
+
+.weapon-btn canvas {
+  width: 40px;
+  height: 40px;
+}
+
+.weapon-btn.active {
+  background: #ffd84d;
+  transform: translateY(-6px) scale(1.08);
+}
+
+.weapon-btn:disabled {
+  opacity: 0.35;
+}
+
+.ammo {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 12px;
+  border: 3px solid #4a2a35;
+  background: #ff5c9a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 18px;
+}
+
+/* ---------- Result ---------- */
+#result {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(74, 42, 53, 0.3);
+  touch-action: manipulation;
+}
+
+#result.hidden {
+  display: none;
+}
+
+.card {
+  max-width: 340px;
+  background: #fff;
+  border: 4px solid #4a2a35;
+  border-radius: 28px;
+  padding: 26px 28px;
+  text-align: center;
+  box-shadow: 0 8px 0 #4a2a35;
+  animation: pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+#result-title {
+  font-size: 40px;
+  font-weight: 900;
+  text-shadow: 3px 3px 0 #4a2a35;
+}
+
+#result-text {
+  margin: 10px 0 20px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+#again {
+  font: inherit;
+  font-size: 20px;
+  font-weight: 800;
+  color: #4a2a35;
+  background: #ffd84d;
+  border: 3px solid #4a2a35;
+  border-radius: 999px;
+  padding: 12px 30px;
+  box-shadow: 0 4px 0 #4a2a35;
+  cursor: pointer;
+}
+
+#again:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #4a2a35;
+}
+
+@keyframes pop-in {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
